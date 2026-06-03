@@ -6,832 +6,686 @@
 <title>Gestor SRI Ecuador</title>
 <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Segoe UI',sans-serif;background:#0a0e17;color:#e2e8f0;font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:#f3f4f6;color:#111827;font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
 
-  /* Header */
-  .hdr{background:#111827;border-bottom:1px solid #1e293b;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0}
-  .hdr-logo{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,#1d4ed8,#7c3aed);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:11px;color:#fff;flex-shrink:0}
-  .hdr-title{font-size:13px;font-weight:700}
-  .hdr-sub{font-size:10px;color:#64748b}
+.hdr{background:#1e3a5f;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.hdr-logo{width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,#3b82f6,#7c3aed);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:11px;color:#fff;flex-shrink:0}
+.hdr-title{font-size:13px;font-weight:700;color:#fff}
+.hdr-sub{font-size:10px;color:#93c5fd}
 
-  /* Tabs */
-  .tabs{display:flex;background:#111827;border-bottom:1px solid #1e293b;flex-shrink:0}
-  .tab{flex:1;padding:9px 6px;text-align:center;cursor:pointer;font-size:11px;color:#64748b;border-bottom:2px solid transparent;border:none;background:none;font-family:inherit}
-  .tab.active{color:#3b82f6;border-bottom:2px solid #3b82f6;font-weight:700}
+.tabs{display:flex;background:#fff;border-bottom:2px solid #e5e7eb;flex-shrink:0}
+.tab{flex:1;padding:9px 4px;text-align:center;cursor:pointer;font-size:11px;color:#6b7280;border-bottom:2px solid transparent;border:none;background:none;font-family:inherit;margin-bottom:-2px}
+.tab.active{color:#1d4ed8;border-bottom:2px solid #1d4ed8;font-weight:700}
 
-  /* Drop zone */
-  .dropzone{margin:12px;border:2px dashed #1e293b;border-radius:10px;padding:20px 12px;text-align:center;cursor:pointer;transition:all .2s;color:#64748b;font-size:12px;line-height:1.8}
-  .dropzone:hover,.dropzone.drag{border-color:#3b82f6;background:#3b82f610;color:#3b82f6}
-  .dropzone input{display:none}
+.content{flex:1;overflow-y:auto;padding:12px}
 
-  /* Buttons */
-  .btn{border-radius:6px;padding:7px 12px;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;border:none;font-weight:600}
-  .btn-blue{background:#1d4ed8;color:#fff}
-  .btn-blue:hover{background:#2563eb}
-  .btn-green{background:#15803d;color:#fff}
-  .btn-green:hover{background:#16a34a}
-  .btn-red{background:#7f1d1d;color:#fff}
-  .btn-red:hover{background:#991b1b}
-  .btn-outline{background:transparent;border:1px solid #3b82f644;color:#3b82f6}
-  .btn-outline:hover{background:#3b82f611}
-  .btn-sm{padding:4px 10px;font-size:10px}
+.dropzone{border:2px dashed #d1d5db;border-radius:8px;padding:18px 12px;text-align:center;cursor:pointer;transition:all .2s;color:#6b7280;font-size:12px;line-height:1.9;background:#fff;margin-bottom:10px}
+.dropzone:hover,.dropzone.drag{border-color:#3b82f6;background:#eff6ff;color:#1d4ed8}
+.dropzone input{display:none}
 
-  /* Card */
-  .card{background:#161f2e;border:1px solid #1e293b;border-radius:8px;padding:12px 14px;margin-bottom:10px}
-  .card-title{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:10px}
+.btn{border-radius:6px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap;border:none;font-weight:600;transition:all .15s}
+.btn-primary{background:#1d4ed8;color:#fff}
+.btn-primary:hover{background:#1e40af}
+.btn-success{background:#15803d;color:#fff}
+.btn-success:hover{background:#166534}
+.btn-danger{background:#dc2626;color:#fff}
+.btn-danger:hover{background:#b91c1c}
+.btn-outline{background:#fff;border:1px solid #d1d5db;color:#374151}
+.btn-outline:hover{background:#f9fafb;border-color:#9ca3af}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn-full{width:100%;text-align:center}
 
-  /* Badge */
-  .badge{display:inline-block;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700}
-  .badge-blue{background:#1d4ed822;border:1px solid #3b82f644;color:#3b82f6}
-  .badge-green{background:#15803d22;border:1px solid #22c55e44;color:#22c55e}
-  .badge-yellow{background:#78350f22;border:1px solid #f59e0b44;color:#f59e0b}
-  .badge-purple{background:#6b21a822;border:1px solid #a855f744;color:#a855f7}
-  .badge-red{background:#7f1d1d22;border:1px solid #ef444444;color:#ef4444}
-  .badge-gray{background:#1e293b;border:1px solid #334155;color:#64748b}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;margin-bottom:10px}
+.card-title{font-size:11px;font-weight:700;color:#374151;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.card-title .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 
-  /* File list */
-  .file-item{padding:9px 12px;border-bottom:1px solid #1e293b11;cursor:pointer;border-left:3px solid transparent;transition:all .15s}
-  .file-item:hover{background:#3b82f611}
-  .file-item.active{border-left-color:#3b82f6;background:#3b82f611}
-  .file-name{font-size:11px;word-break:break-all;margin-bottom:4px}
-  .file-meta{font-size:10px;color:#64748b;margin-top:3px}
+.badge{display:inline-block;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700}
+.badge-blue{background:#dbeafe;color:#1d4ed8}
+.badge-green{background:#dcfce7;color:#15803d}
+.badge-yellow{background:#fef9c3;color:#854d0e}
+.badge-red{background:#fee2e2;color:#dc2626}
+.badge-gray{background:#f3f4f6;color:#6b7280}
+.badge-purple{background:#f3e8ff;color:#7e22ce}
 
-  /* Content area */
-  .content{flex:1;overflow-y:auto;padding:12px}
+.file-item{padding:9px 12px;border-bottom:1px solid #f3f4f6;cursor:pointer;border-left:3px solid transparent;transition:all .15s}
+.file-item:hover{background:#f9fafb}
+.file-item.active{border-left-color:#1d4ed8;background:#eff6ff}
+.file-name{font-size:11px;word-break:break-all;margin-bottom:4px;color:#111827}
+.file-meta{font-size:10px;color:#9ca3af;margin-top:3px}
 
-  /* Fields */
-  .field{margin-bottom:10px}
-  .field-label{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:3px}
-  .field-value{font-size:12px;word-break:break-all}
-  .field-value.mono{font-family:monospace;font-size:11px}
+.field{margin-bottom:8px}
+.field-label{font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#9ca3af;margin-bottom:2px}
+.field-value{font-size:12px;color:#111827}
+.field-value.mono{font-family:'Consolas',monospace;font-size:11px;background:#f9fafb;padding:3px 6px;border-radius:4px;border:1px solid #e5e7eb;word-break:break-all;display:block}
 
-  /* Clave acceso */
-  .clave{font-family:monospace;font-size:10px;color:#3b82f6;word-break:break-all;background:#060d1a;padding:8px 10px;border-radius:6px;border:1px solid #1e293b;letter-spacing:.5px}
+.divider{height:1px;background:#f3f4f6;margin:10px 0}
+.muted{color:#6b7280;font-size:11px}
+.section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#6b7280;margin:12px 0 6px}
 
-  /* Tabla */
-  .tbl-wrap{overflow-x:auto;margin-top:6px}
-  table{border-collapse:collapse;width:100%;font-size:11px}
-  th{background:#0d1525;color:#3b82f6;padding:6px 8px;border:1px solid #1e293b;text-align:left;white-space:nowrap;font-family:monospace}
-  td{padding:5px 8px;border:1px solid #1e293b;color:#e2e8f0;font-family:monospace;white-space:nowrap}
-  tr:nth-child(even){background:#13192a}
+.tbl-wrap{overflow-x:auto;border-radius:6px;border:1px solid #e5e7eb}
+table{border-collapse:collapse;width:100%;font-size:11px}
+th{background:#f8fafc;color:#374151;padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:left;white-space:nowrap;font-weight:700}
+td{padding:5px 8px;border-bottom:1px solid #f3f4f6;color:#374151;white-space:nowrap}
+tr:hover td{background:#f9fafb}
+.td-num{text-align:right;font-family:monospace}
+.td-total{font-weight:700;color:#15803d}
 
-  /* Totales */
-  .totales{display:flex;justify-content:flex-end;gap:16px;padding-top:10px;border-top:1px solid #1e293b;margin-top:8px}
-  .total-item{text-align:right}
-  .total-label{font-size:9px;color:#64748b}
-  .total-value{font-size:14px;font-weight:800;font-family:monospace}
+.resumen-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.resumen-box{background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px}
+.resumen-label{font-size:10px;color:#6b7280;margin-bottom:2px}
+.resumen-value{font-size:16px;font-weight:800;font-family:monospace}
 
-  /* Hero banner */
-  .hero{background:linear-gradient(135deg,#1e3a5f,#0f2040);border-radius:10px;padding:14px 16px;border:1px solid #3b82f644;margin-bottom:12px}
-  .hero-tipo{font-size:16px;font-weight:800;color:#fff;margin-bottom:3px}
-  .hero-num{font-size:12px;color:#3b82f6;font-family:monospace}
-  .hero-ruc{font-size:10px;color:#64748b;margin-top:4px}
-  .hero-total{font-size:22px;font-weight:900;color:#22c55e;font-family:monospace}
-  .hero-moneda{font-size:9px;color:#64748b}
+.alert{border-radius:6px;padding:10px 12px;font-size:12px;margin-bottom:10px}
+.alert-success{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d}
+.alert-error{background:#fef2f2;border:1px solid #fecaca;color:#dc2626}
+.alert-info{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8}
 
-  /* Grid 2 cols */
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.empty-state{text-align:center;padding:30px 20px;color:#9ca3af}
+.empty-state .icon{font-size:36px;margin-bottom:10px}
+.empty-state .title{font-size:13px;font-weight:700;color:#374151;margin-bottom:6px}
 
-  /* Info boxes */
-  .infobox{background:#060d1a;border:1px solid #1e293b;border-radius:6px;padding:10px 12px}
-  .infobox-label{font-size:9px;color:#64748b;margin-bottom:3px}
-  .infobox-value{font-size:13px;font-weight:700;font-family:monospace}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:#f3f4f6}
+::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:2px}
 
-  /* Toolbar */
-  .toolbar{display:flex;gap:8px;padding:10px 12px;background:#111827;border-bottom:1px solid #1e293b;flex-wrap:wrap;flex-shrink:0}
+.panel{display:none;flex-direction:column;flex:1;overflow:hidden}
+.panel.visible{display:flex}
 
-  /* Status bar */
-  .status{padding:5px 12px;background:#060d1a;border-top:1px solid #1e293b;font-size:10px;color:#64748b;flex-shrink:0;display:flex;align-items:center;gap:6px}
-  .status-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+label.check{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#374151;padding:4px 0}
+input[type=checkbox]{width:14px;height:14px;accent-color:#1d4ed8}
 
-  /* Panels */
-  .panel{display:none;flex-direction:column;flex:1;overflow:hidden}
-  .panel.visible{display:flex}
+.toolbar{display:flex;gap:6px;padding:8px 12px;background:#fff;border-bottom:1px solid #e5e7eb;flex-wrap:wrap;align-items:center;flex-shrink:0}
 
-  /* Sidebar */
-  .sidebar{display:flex;flex-direction:column;flex:1;overflow:hidden}
-  .sidebar-list{flex:1;overflow-y:auto}
-  .sidebar-foot{padding:8px;border-top:1px solid #1e293b}
-
-  /* Empty state */
-  .empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#64748b;padding:20px;text-align:center}
-  .empty-icon{font-size:40px}
-  .empty-title{font-size:14px;font-weight:700;color:#e2e8f0}
-  .empty-sub{font-size:11px;line-height:1.6}
-  .chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:6px}
-
-  /* ATS summary */
-  .ats-hdr{background:linear-gradient(135deg,#1a2a1a,#0f200f);border-radius:10px;padding:14px 16px;border:1px solid #22c55e44;margin-bottom:12px}
-
-  /* Ret table */
-  .ret-total{text-align:right;padding:8px 10px;border-top:1px solid #1e293b;color:#64748b;font-size:11px}
-
-  /* Scroll */
-  ::-webkit-scrollbar{width:4px;height:4px}
-  ::-webkit-scrollbar-track{background:#0a0e17}
-  ::-webkit-scrollbar-thumb{background:#1e293b;border-radius:2px}
-  ::-webkit-scrollbar-thumb:hover{background:#334155}
-
-  /* Main layout */
-  #main{display:flex;flex-direction:column;flex:1;overflow:hidden}
-  #view-panel{display:flex;flex-direction:column;flex:1;overflow:hidden}
-  #list-panel{display:flex;flex-direction:column;flex:1;overflow:hidden}
+.progress{display:none;padding:10px 14px;background:#eff6ff;border-bottom:1px solid #bfdbfe;font-size:11px;color:#1d4ed8}
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
 <div class="hdr">
   <div class="hdr-logo">SRI</div>
   <div>
     <div class="hdr-title">Gestor SRI Ecuador</div>
-    <div class="hdr-sub">XML · ATS · TXT · Comprobantes Electrónicos</div>
+    <div class="hdr-sub">Portal SRI → Excel · XML · TXT</div>
   </div>
 </div>
 
-<!-- TABS -->
 <div class="tabs">
-  <button class="tab active" onclick="switchTab('files')" id="tab-files">📁 Archivos</button>
-  <button class="tab" onclick="switchTab('view')" id="tab-view">🔍 Vista</button>
-  <button class="tab" onclick="switchTab('excel')" id="tab-excel">📊 Excel</button>
+  <button class="tab active" onclick="goTab('cargar')" id="tab-cargar">📂 Cargar</button>
+  <button class="tab" onclick="goTab('vista')" id="tab-vista">🔍 Vista</button>
+  <button class="tab" onclick="goTab('excel')" id="tab-excel">📊 Excel</button>
 </div>
 
-<!-- ═══ PANEL: ARCHIVOS ═══ -->
-<div class="panel visible" id="panel-files">
-  <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()"
-    ondragover="event.preventDefault();this.classList.add('drag')"
-    ondragleave="this.classList.remove('drag')"
-    ondrop="handleDrop(event)">
-    <input type="file" id="fileInput" accept=".xml,.txt,.csv" multiple onchange="handleFiles(this.files)">
-    📂 Haz clic o arrastra aquí<br>
-    <span style="font-size:10px">XML del SRI · TXT del ATS · CSV</span>
-  </div>
-  <div class="sidebar">
-    <div class="sidebar-list" id="fileList">
-      <div class="empty">
-        <div class="empty-icon">🇪🇨</div>
-        <div class="empty-title">Sin archivos</div>
-        <div class="empty-sub">Carga tus archivos del SRI para comenzar</div>
-        <div class="chips">
-          <span class="badge badge-blue">Factura</span>
-          <span class="badge badge-blue">Retención</span>
-          <span class="badge badge-blue">Nota Crédito</span>
-          <span class="badge badge-green">ATS</span>
-          <span class="badge badge-green">RDEP/REOC</span>
-        </div>
+<div class="progress" id="progress">⏳ Procesando...</div>
+
+<!-- ══ CARGAR ══ -->
+<div class="panel visible" id="panel-cargar">
+  <div class="content">
+    <div class="dropzone" id="dz" onclick="document.getElementById('fi').click()"
+      ondragover="ev.preventDefault();this.classList.add('drag')" 
+      ondragleave="this.classList.remove('drag')"
+      ondrop="onDrop(event)">
+      <input type="file" id="fi" accept=".txt,.csv,.xml" multiple onchange="onFiles(this.files)">
+      📂 Clic o arrastra aquí<br>
+      <strong>TXT del portal SRI</strong> · XML de comprobantes
+    </div>
+
+    <div id="fileList">
+      <div class="empty-state">
+        <div class="icon">🇪🇨</div>
+        <div class="title">Sin archivos cargados</div>
+        <div class="muted">Descarga los TXT desde el portal SRI en línea y cárgalos aquí</div>
       </div>
     </div>
-    <div class="sidebar-foot" id="sidebarFoot" style="display:none">
-      <button class="btn btn-red" style="width:100%" onclick="clearAll()">🗑 Limpiar todo</button>
-    </div>
   </div>
 </div>
 
-<!-- ═══ PANEL: VISTA ═══ -->
-<div class="panel" id="panel-view">
-  <div class="toolbar" id="viewToolbar">
-    <button class="btn btn-outline btn-sm" onclick="switchTab('files')">← Archivos</button>
-    <span id="viewBadges"></span>
+<!-- ══ VISTA ══ -->
+<div class="panel" id="panel-vista">
+  <div class="toolbar">
+    <button class="btn btn-outline btn-sm" onclick="goTab('cargar')">← Volver</button>
+    <div id="vistaBadges" style="display:flex;gap:4px;align-items:center"></div>
     <div style="flex:1"></div>
-    <button class="btn btn-green btn-sm" onclick="exportarExcel()" id="btnExcel">📊 → Excel</button>
+    <button class="btn btn-success btn-sm" onclick="exportarActivo()">📊 → Excel</button>
   </div>
-  <div class="content" id="viewContent">
-    <div class="empty"><div class="empty-icon">📋</div><div class="empty-title">Selecciona un archivo</div></div>
+  <div class="content" id="vistaContent">
+    <div class="empty-state"><div class="icon">📋</div><div class="title">Selecciona un archivo</div></div>
   </div>
 </div>
 
-<!-- ═══ PANEL: EXCEL ═══ -->
+<!-- ══ EXCEL ══ -->
 <div class="panel" id="panel-excel">
   <div class="toolbar">
-    <button class="btn btn-outline btn-sm" onclick="switchTab('files')">← Archivos</button>
-    <span style="font-size:11px;color:#64748b">Exportar a hojas de Excel</span>
+    <button class="btn btn-outline btn-sm" onclick="goTab('cargar')">← Volver</button>
+    <span style="font-size:11px;color:#6b7280">Exportar a Excel</span>
   </div>
   <div class="content">
+
     <div class="card">
-      <div class="card-title">Opciones de exportación</div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">
-          <input type="checkbox" id="chkCabecera" checked> Incluir cabecera con datos del comprobante
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">
-          <input type="checkbox" id="chkDetalles" checked> Detalles / líneas del comprobante
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">
-          <input type="checkbox" id="chkImpuestos" checked> Impuestos y retenciones
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px">
-          <input type="checkbox" id="chkNuevaHoja" checked> Crear nueva hoja por archivo
-        </label>
-      </div>
+      <div class="card-title"><div class="dot" style="background:#1d4ed8"></div>Columnas calculadas</div>
+      <div class="muted" style="margin-bottom:8px">Igual que tu plantilla IVA_MS_MAYO</div>
+      <label class="check"><input type="checkbox" id="chkGravada" checked> BASE GRAVADA = IVA ÷ 0.15</label>
+      <label class="check"><input type="checkbox" id="chkValorSin" checked> VALOR_SIN_IMPUESTOS = TOTAL − IVA − bases</label>
+      <label class="check"><input type="checkbox" id="chkFormula" checked> Insertar como fórmulas Excel (editables)</label>
+      <label class="check"><input type="checkbox" id="chkFormato" checked> Formato de moneda en columnas numéricas</label>
     </div>
 
     <div class="card">
-      <div class="card-title">Exportar archivo activo</div>
-      <p style="font-size:11px;color:#64748b;margin-bottom:10px" id="excelActiveFile">Ningún archivo seleccionado</p>
-      <button class="btn btn-green" style="width:100%" onclick="exportarExcel()">📊 Exportar a Excel ahora</button>
+      <div class="card-title"><div class="dot" style="background:#15803d"></div>Exportar archivo activo</div>
+      <p class="muted" style="margin-bottom:8px" id="excelFileLabel">Ningún archivo seleccionado</p>
+      <button class="btn btn-success btn-full" onclick="exportarActivo()">📊 Exportar → hoja de Excel</button>
     </div>
 
     <div class="card">
-      <div class="card-title">Exportar todos los archivos</div>
-      <p style="font-size:11px;color:#64748b;margin-bottom:10px">Crea una hoja por cada archivo cargado</p>
-      <button class="btn btn-blue" style="width:100%" onclick="exportarTodos()">📊 Exportar todos → Excel</button>
+      <div class="card-title"><div class="dot" style="background:#7e22ce"></div>Exportar todos</div>
+      <p class="muted" style="margin-bottom:8px">Una hoja por cada archivo cargado</p>
+      <button class="btn btn-primary btn-full" onclick="exportarTodos()">📊 Exportar todos los archivos</button>
     </div>
 
-    <div class="card" id="cardATS" style="display:none">
-      <div class="card-title">🧾 ATS detectado</div>
-      <p style="font-size:11px;color:#64748b;margin-bottom:10px">Exporta el ATS en hojas separadas: Compras, Ventas y Resumen</p>
-      <button class="btn btn-blue" style="width:100%" onclick="exportarATS()">📊 Exportar ATS completo</button>
-    </div>
-
-    <div id="excelStatus" style="margin-top:8px;font-size:11px;display:none"></div>
+    <div id="excelMsg" style="display:none"></div>
   </div>
-</div>
-
-<!-- STATUS BAR -->
-<div class="status" id="statusBar">
-  <div class="status-dot" style="background:#22c55e"></div>
-  <span id="statusMsg">Listo · Carga archivos XML o TXT del SRI</span>
 </div>
 
 <script>
-// ─── CONSTANTES SRI ────────────────────────────────────────────────────────
-const TIPO_COMP = {"01":"Factura","04":"Nota de Crédito","05":"Nota de Débito","06":"Guía de Remisión","07":"Comprobante de Retención","03":"Liquidación de Compra","41":"Reembolso"};
-const TIPO_ID = {"04":"RUC","05":"Cédula","06":"Pasaporte","07":"Consumidor Final","08":"ID Exterior"};
-const COD_RF = {"303":"Honorarios 10%","304":"Intelecto 8%","307":"Mano de obra 2%","309":"Servicios 1%","310":"Bienes muebles 1%","312":"Transporte 1%","319":"Arrend. inmuebles 8%","320":"Arrend. muebles 1%","322":"Seguros 1%","323":"Rdtos. financieros 2%","332":"Otras 1%","340":"Otras 2%","341":"Otras 8%"};
-const COD_IVA = {"1":"10%","2":"20%","3":"30%","5":"50%","7":"70%","9":"100%"};
+// ══ ESTADO ══
+let archivos = [], activoId = null;
+let officeOK = false;
 
-// ─── ESTADO ────────────────────────────────────────────────────────────────
-let archivos = [];
-let activoId = null;
-
-// ─── OFFICE.JS INIT ────────────────────────────────────────────────────────
-let officeReady = false;
-if(typeof Office !== 'undefined'){
-  Office.onReady(() => { officeReady = true; setStatus('Office listo · Carga archivos XML o TXT del SRI','green'); });
-} else {
-  setStatus('Modo standalone (sin Excel conectado)','yellow');
+if (typeof Office !== 'undefined') {
+  Office.onReady(() => { officeOK = true; });
 }
 
-// ─── UI HELPERS ────────────────────────────────────────────────────────────
-function switchTab(t){
-  ['files','view','excel'].forEach(p=>{
+// ══ TABS ══
+function goTab(t) {
+  ['cargar','vista','excel'].forEach(p => {
     document.getElementById('panel-'+p).classList.remove('visible');
-    document.getElementById('tab-'+p)?.classList.remove('active');
+    document.getElementById('tab-'+p).classList.remove('active');
   });
   document.getElementById('panel-'+t).classList.add('visible');
-  document.getElementById('tab-'+t)?.classList.add('active');
-  if(t==='excel') updateExcelPanel();
+  document.getElementById('tab-'+t).classList.add('active');
+  if (t === 'excel') {
+    const a = archivos.find(x => x.id === activoId);
+    document.getElementById('excelFileLabel').textContent = a ? a.nombre : 'Ningún archivo seleccionado';
+  }
 }
 
-function setStatus(msg, color='green'){
-  document.getElementById('statusMsg').textContent = msg;
-  document.getElementById('statusBar').querySelector('.status-dot').style.background =
-    color==='green'?'#22c55e':color==='red'?'#ef4444':'#f59e0b';
-}
-
-function badge(text, cls){ return `<span class="badge badge-${cls}" style="margin-right:4px">${text}</span>`; }
-function fmtMoney(v){ return '$'+(parseFloat(v)||0).toFixed(2); }
-function getText(el,sel){ return el.querySelector?.(sel)?.textContent?.trim()||''; }
-
-// ─── FILE HANDLING ─────────────────────────────────────────────────────────
-function handleDrop(e){
+// ══ ARCHIVOS ══
+function onDrop(e) {
   e.preventDefault();
-  document.getElementById('dropzone').classList.remove('drag');
-  handleFiles(e.dataTransfer.files);
+  document.getElementById('dz').classList.remove('drag');
+  onFiles(e.dataTransfer.files);
 }
-function handleFiles(files){
-  Array.from(files).forEach(f=>{
-    const r=new FileReader();
-    r.onload=e=>procesarArchivo(f.name, e.target.result, f.size);
-    r.readAsText(f,'UTF-8');
+function onFiles(files) {
+  Array.from(files).forEach(f => {
+    const r = new FileReader();
+    r.onload = e => procesarArchivo(f.name, e.target.result, f.size);
+    r.readAsText(f, 'UTF-8');
   });
 }
 
-function procesarArchivo(nombre, content, size){
+function procesarArchivo(nombre, content, size) {
   const ext = nombre.split('.').pop().toLowerCase();
-  let parsed=null, error=null, tipo='desconocido';
+  let parsed = null, error = null, tipo = 'txt';
   try {
-    if(ext==='xml'){ parsed=parsearXML(content); tipo='xml'; }
-    else if(ext==='txt'||ext==='csv'){ parsed=parsearTXT(content); tipo='txt'; }
-    else { try{parsed=parsearXML(content);tipo='xml';}catch{parsed=parsearTXT(content);tipo='txt';} }
-  } catch(err){ error=err.message; }
-  const a={ id: Date.now()+Math.random(), nombre, content, parsed, error, tipo, size };
+    if (ext === 'xml') { parsed = parsearXML(content); tipo = 'xml'; }
+    else { parsed = parsearTXT(content); tipo = 'txt'; }
+  } catch(e) { error = e.message; }
+  
+  const a = { id: Date.now()+Math.random(), nombre, content, parsed, error, tipo, size };
   archivos.push(a);
   activoId = a.id;
   renderFileList();
-  renderView(a);
-  switchTab('view');
-  setStatus(`Cargado: ${nombre} · ${(size/1024).toFixed(1)} KB`);
+  renderVista(a);
+  goTab('vista');
 }
 
-function clearAll(){
-  archivos=[]; activoId=null;
-  renderFileList();
-  document.getElementById('viewContent').innerHTML='<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">Selecciona un archivo</div></div>';
-  document.getElementById('viewBadges').innerHTML='';
-  switchTab('files');
-  setStatus('Listo · Carga archivos XML o TXT del SRI');
-}
-
-function renderFileList(){
-  const list = document.getElementById('fileList');
-  const foot = document.getElementById('sidebarFoot');
-  if(!archivos.length){ list.innerHTML='<div class="empty"><div class="empty-icon">🇪🇨</div><div class="empty-title">Sin archivos</div><div class="empty-sub">Carga tus archivos del SRI</div></div>'; foot.style.display='none'; return; }
-  foot.style.display='block';
-  list.innerHTML = archivos.map(a=>{
-    const docTipo = a.parsed?.tipo||a.parsed?.formato||'';
-    const b1 = a.tipo==='xml'?`<span class="badge badge-blue" style="font-size:9px">XML</span>`:`<span class="badge badge-green" style="font-size:9px">TXT</span>`;
-    const b2 = docTipo ? tipoBadge(docTipo,a.tipo) : '';
-    const berr = a.error?`<span class="badge badge-red" style="font-size:9px">ERR</span>`:'';
+function renderFileList() {
+  const el = document.getElementById('fileList');
+  if (!archivos.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">🇪🇨</div><div class="title">Sin archivos</div><div class="muted">Carga tus TXT o XML del SRI</div></div>';
+    return;
+  }
+  el.innerHTML = archivos.map(a => {
+    const tp = a.tipo === 'xml' 
+      ? `<span class="badge badge-purple">XML</span> <span class="badge badge-blue">${a.parsed?.tipo?.substring(0,3).toUpperCase()||'?'}</span>`
+      : `<span class="badge badge-blue">TXT</span> <span class="badge badge-gray">${a.parsed?.nFilas||0} filas</span>`;
     return `<div class="file-item ${a.id===activoId?'active':''}" onclick="selectFile(${a.id})">
-      <div class="file-name" style="color:${a.error?'#ef4444':'#e2e8f0'}">${a.nombre}</div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${b1}${b2}${berr}</div>
+      <div class="file-name">${a.nombre}</div>
+      <div style="display:flex;gap:4px;margin-top:3px">${tp}${a.error?'<span class="badge badge-red">ERR</span>':''}</div>
       <div class="file-meta">${(a.size/1024).toFixed(1)} KB</div>
     </div>`;
-  }).join('');
+  }).join('') + `<div style="padding:8px"><button class="btn btn-danger btn-sm btn-full" onclick="clearAll()">🗑 Limpiar todo</button></div>`;
 }
 
-function tipoBadge(tipo, archivoTipo){
-  if(archivoTipo==='xml'){
-    const m={factura:'FAC',notaCredito:'NC',notaDebito:'ND',retencion:'RET',liquidacion:'LIQ',guiaRemision:'GR'};
-    return `<span class="badge badge-purple" style="font-size:9px">${m[tipo]||tipo.substring(0,3).toUpperCase()}</span>`;
-  }
-  return `<span class="badge badge-green" style="font-size:9px">${(tipo||'').toUpperCase()}</span>`;
-}
-
-function selectFile(id){
+function selectFile(id) {
   activoId = id;
-  const a = archivos.find(x=>x.id===id);
-  if(a){ renderFileList(); renderView(a); switchTab('view'); }
+  const a = archivos.find(x => x.id === id);
+  renderFileList();
+  if (a) { renderVista(a); goTab('vista'); }
 }
 
-// ─── XML PARSER SRI ─────────────────────────────────────────────────────────
-function parsearXML(xmlStr){
-  const parser=new DOMParser();
-  const doc=parser.parseFromString(xmlStr,'application/xml');
-  if(doc.querySelector('parsererror')) throw new Error(doc.querySelector('parsererror').textContent.split('\n')[0]);
-  const rootName=doc.documentElement.nodeName.toLowerCase();
-  const codDoc=doc.querySelector('codDoc')?.textContent?.trim();
-  let tipo = codDoc==='01'?'factura':codDoc==='04'?'notaCredito':codDoc==='05'?'notaDebito':codDoc==='07'?'retencion':codDoc==='03'?'liquidacion':codDoc==='06'?'guiaRemision':
-    rootName.includes('factura')?'factura':rootName.includes('retencion')?'retencion':rootName.includes('notacredito')?'notaCredito':rootName.includes('notadebito')?'notaDebito':rootName.includes('liquidacion')?'liquidacion':rootName.includes('guia')?'guiaRemision':'desconocido';
+function clearAll() {
+  archivos = []; activoId = null;
+  renderFileList();
+  document.getElementById('vistaContent').innerHTML = '<div class="empty-state"><div class="icon">📋</div><div class="title">Sin archivos</div></div>';
+}
 
-  const g=sel=>getText(doc,sel);
-  const infoTrib={
-    ambiente: g('ambiente')==='1'?'Pruebas':g('ambiente')==='2'?'Producción':g('ambiente'),
-    tipoEmision: g('tipoEmision')==='1'?'Normal':g('tipoEmision'),
-    razonSocial:g('razonSocial'), nombreComercial:g('nombreComercial'),
-    ruc:g('ruc'), claveAcceso:g('claveAcceso'), codDoc:g('codDoc'),
-    estab:g('estab'), ptoEmi:g('ptoEmi'), secuencial:g('secuencial'), dirMatriz:g('dirMatriz'),
-  };
-  const num=`${infoTrib.estab}-${infoTrib.ptoEmi}-${infoTrib.secuencial}`;
-  let infoDoc={}, detalles=[], impuestos=[], retenciones=[], pagos=[];
+// ══ PARSER TXT PORTAL SRI ══
+// Formato: tab-separado, cabecera en fila 1
+// Columnas: RUC_EMISOR, RAZON_SOCIAL_EMISOR, TIPO_COMPROBANTE, SERIE_COMPROBANTE,
+//           CLAVE_ACCESO, FECHA_AUTORIZACION, FECHA_EMISION, IDENTIFICACION_RECEPTOR,
+//           VALOR_SIN_IMPUESTOS, IVA, IMPORTE_TOTAL, NUMERO_DOCUMENTO_MODIFICADO
+function parsearTXT(content) {
+  const lines = content.split(/\r?\n/).filter(l => l.trim());
+  if (!lines.length) throw new Error('Archivo vacío');
+  
+  // Detectar delimitador
+  const delim = lines[0].includes('\t') ? '\t' : lines[0].includes('|') ? '|' : ';';
+  const headers = lines[0].split(delim).map(h => h.trim());
+  
+  const rows = lines.slice(1).map(l => {
+    const vals = l.split(delim);
+    const row = {};
+    headers.forEach((h, i) => { row[h] = (vals[i] || '').trim(); });
+    return row;
+  });
 
-  if(tipo==='factura'){
+  // Detectar si es portal SRI (tiene CLAVE_ACCESO y IVA)
+  const esPortalSRI = headers.includes('CLAVE_ACCESO') && headers.includes('IVA');
+
+  // Calcular totales si es portal SRI
+  let totales = {};
+  if (esPortalSRI) {
+    totales = {
+      totalIVA: rows.reduce((s, r) => s + (parseFloat(r.IVA) || 0), 0),
+      totalImporte: rows.reduce((s, r) => s + (parseFloat(r.IMPORTE_TOTAL) || 0), 0),
+      totalBaseGravada: rows.reduce((s, r) => s + ((parseFloat(r.IVA)||0) / 0.15), 0),
+    };
+  }
+
+  return { tipo: 'portal_sri', esPortalSRI, headers, rows, nFilas: rows.length, totales, delim };
+}
+
+// ══ PARSER XML SRI ══
+const TC = {"01":"Factura","04":"Nota Crédito","05":"Nota Débito","06":"Guía Remisión","07":"Retención","03":"Liquidación"};
+const TID = {"04":"RUC","05":"Cédula","06":"Pasaporte","07":"Cons. Final","08":"Ext."};
+const CRF = {"303":"Honorarios 10%","304":"Intelecto 8%","307":"M.obra 2%","309":"Servicios 1%","310":"Bienes 1%","319":"Arrend.Inm 8%","322":"Seguros 1%","323":"Rdtos.Fin 2%","332":"Otras 1%","340":"Otras 2%","341":"Otras 8%"};
+
+function g(el, s) { return el.querySelector?.(s)?.textContent?.trim() || ''; }
+
+function parsearXML(xmlStr) {
+  const doc = new DOMParser().parseFromString(xmlStr, 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('XML inválido');
+  const cod = g(doc,'codDoc');
+  const tipo = cod==='01'?'factura':cod==='04'?'notaCredito':cod==='05'?'notaDebito':cod==='07'?'retencion':cod==='03'?'liquidacion':cod==='06'?'guiaRemision':'desconocido';
+  const it = { ambiente:g(doc,'ambiente')==='1'?'Pruebas':g(doc,'ambiente')==='2'?'Producción':g(doc,'ambiente'), razonSocial:g(doc,'razonSocial'), ruc:g(doc,'ruc'), claveAcceso:g(doc,'claveAcceso'), codDoc:cod, estab:g(doc,'estab'), ptoEmi:g(doc,'ptoEmi'), secuencial:g(doc,'secuencial'), dirMatriz:g(doc,'dirMatriz') };
+  let id={}, det=[], imp=[], ret=[], pag=[];
+  if (tipo==='factura') {
     const info=doc.querySelector('infoFactura');
-    if(info){
-      const gI=sel=>getText(info,sel);
-      infoDoc={fechaEmision:gI('fechaEmision'),dirEstablecimiento:gI('dirEstablecimiento'),obligadoContabilidad:gI('obligadoContabilidad'),tipoIdentificacionComprador:TIPO_ID[gI('tipoIdentificacionComprador')]||gI('tipoIdentificacionComprador'),razonSocialComprador:gI('razonSocialComprador'),identificacionComprador:gI('identificacionComprador'),totalSinImpuestos:(+gI('totalSinImpuestos')||0).toFixed(2),totalDescuento:(+gI('totalDescuento')||0).toFixed(2),importeTotal:(+gI('importeTotal')||0).toFixed(2),moneda:gI('moneda')||'DOLAR'};
-      info.querySelectorAll('totalConImpuestos totalImpuesto').forEach(i=>impuestos.push({codigo:getText(i,'codigo'),codigoPorcentaje:getText(i,'codigoPorcentaje'),baseImponible:(+getText(i,'baseImponible')||0).toFixed(2),valor:(+getText(i,'valor')||0).toFixed(2)}));
-      info.querySelectorAll('pagos pago').forEach(p=>pagos.push({formaPago:getText(p,'formaPago'),total:(+getText(p,'total')||0).toFixed(2),plazo:getText(p,'plazo'),unidadTiempo:getText(p,'unidadTiempo')}));
+    if(info) {
+      id={fechaEmision:g(info,'fechaEmision'),dirEstab:g(info,'dirEstablecimiento'),tipoIdComp:TID[g(info,'tipoIdentificacionComprador')]||g(info,'tipoIdentificacionComprador'),rsComp:g(info,'razonSocialComprador'),idComp:g(info,'identificacionComprador'),totalSin:(+g(info,'totalSinImpuestos')||0).toFixed(2),descuento:(+g(info,'totalDescuento')||0).toFixed(2),total:(+g(info,'importeTotal')||0).toFixed(2),moneda:g(info,'moneda')||'USD'};
+      info.querySelectorAll('totalConImpuestos totalImpuesto').forEach(i=>imp.push({cod:g(i,'codigo'),pct:g(i,'codigoPorcentaje'),base:(+g(i,'baseImponible')||0).toFixed(2),val:(+g(i,'valor')||0).toFixed(2)}));
+      info.querySelectorAll('pagos pago').forEach(p=>pag.push({forma:g(p,'formaPago'),total:(+g(p,'total')||0).toFixed(2)}));
     }
-    doc.querySelectorAll('detalles detalle').forEach(d=>detalles.push({codigoPrincipal:getText(d,'codigoPrincipal'),descripcion:getText(d,'descripcion'),cantidad:getText(d,'cantidad'),precioUnitario:(+getText(d,'precioUnitario')||0).toFixed(4),descuento:(+getText(d,'descuento')||0).toFixed(2),precioTotalSinImpuesto:(+getText(d,'precioTotalSinImpuesto')||0).toFixed(2)}));
-  } else if(tipo==='retencion'){
+    doc.querySelectorAll('detalles detalle').forEach(d=>det.push({cod:g(d,'codigoPrincipal'),desc:g(d,'descripcion'),cant:g(d,'cantidad'),pu:(+g(d,'precioUnitario')||0).toFixed(2),desc2:(+g(d,'descuento')||0).toFixed(2),sub:(+g(d,'precioTotalSinImpuesto')||0).toFixed(2)}));
+  } else if (tipo==='retencion') {
     const info=doc.querySelector('infoCompRetencion,infoComprobanteRetencion');
-    if(info) infoDoc={fechaEmision:getText(info,'fechaEmision'),dirEstablecimiento:getText(info,'dirEstablecimiento'),periodoFiscal:getText(info,'periodoFiscal'),tipoIdentificacionSujetoRetenido:TIPO_ID[getText(info,'tipoIdentificacionSujetoRetenido')]||getText(info,'tipoIdentificacionSujetoRetenido'),razonSocialSujetoRetenido:getText(info,'razonSocialSujetoRetenido'),identificacionSujetoRetenido:getText(info,'identificacionSujetoRetenido')};
-    doc.querySelectorAll('impuestos impuesto,retenciones retencion').forEach(r=>{
-      const cod=getText(r,'codigo'),codR=getText(r,'codigoRetencion');
-      retenciones.push({codigo:cod,codigoRetencion:codR,descripcion:cod==='1'?`RF: ${COD_RF[codR]||codR}`:cod==='2'?`IVA: ${COD_IVA[codR]||codR+'%'}`:codR,baseImponible:(+getText(r,'baseImponible')||0).toFixed(2),porcentajeRetener:getText(r,'porcentajeRetener'),valorRetenido:(+getText(r,'valorRetenido')||0).toFixed(2)});
-    });
-  } else if(tipo==='notaCredito'){
-    const info=doc.querySelector('infoNotaCredito');
-    if(info) infoDoc={fechaEmision:getText(info,'fechaEmision'),tipoIdentificacionComprador:TIPO_ID[getText(info,'tipoIdentificacionComprador')]||getText(info,'tipoIdentificacionComprador'),razonSocialComprador:getText(info,'razonSocialComprador'),identificacionComprador:getText(info,'identificacionComprador'),codDocModificado:TIPO_COMP[getText(info,'codDocModificado')]||getText(info,'codDocModificado'),numDocModificado:getText(info,'numDocModificado'),fechaEmisionDocSustento:getText(info,'fechaEmisionDocSustento'),totalSinImpuestos:(+getText(info,'totalSinImpuestos')||0).toFixed(2),valorModificacion:(+getText(info,'valorModificacion')||0).toFixed(2),motivo:getText(info,'motivo')};
-    doc.querySelectorAll('detalles detalle').forEach(d=>detalles.push({descripcion:getText(d,'descripcion'),cantidad:getText(d,'cantidad'),precioUnitario:(+getText(d,'precioUnitario')||0).toFixed(2),precioTotalSinImpuesto:(+getText(d,'precioTotalSinImpuesto')||0).toFixed(2)}));
-  } else {
-    const ai=doc.querySelector('infoNotaDebito,infoLiquidacionCompra,infoGuiaRemision');
-    if(ai) Array.from(ai.children).forEach(el=>{if(!el.children.length) infoDoc[el.nodeName]=el.textContent.trim();});
+    if(info) id={fechaEmision:g(info,'fechaEmision'),periodoFiscal:g(info,'periodoFiscal'),tipoIdRet:TID[g(info,'tipoIdentificacionSujetoRetenido')]||g(info,'tipoIdentificacionSujetoRetenido'),rsRet:g(info,'razonSocialSujetoRetenido'),idRet:g(info,'identificacionSujetoRetenido')};
+    doc.querySelectorAll('impuestos impuesto,retenciones retencion').forEach(r=>{const c=g(r,'codigo'),cr=g(r,'codigoRetencion');ret.push({tipo:c==='1'?'Renta':'IVA',cod:cr,desc:c==='1'?`RF: ${CRF[cr]||cr}`:cr,base:(+g(r,'baseImponible')||0).toFixed(2),pct:g(r,'porcentajeRetener'),val:(+g(r,'valorRetenido')||0).toFixed(2)});});
   }
-  return {tipo,infoTrib,numeroComprobante:num,infoDoc,detalles,impuestos,retenciones,pagos};
+  return { tipo, nFilas:1, it, id, det, imp, ret, pag, numeroComprobante:`${it.estab}-${it.ptoEmi}-${it.secuencial}` };
 }
 
-// ─── TXT PARSER SRI ──────────────────────────────────────────────────────────
-function parsearTXT(content){
-  const lines=content.split(/\r?\n/).filter(l=>l.trim());
-  const h=lines[0]||'';
-  const fmt=/^\d{13}\|/.test(h)?'ats':h.includes('|')?'pipe':h.includes(';')?'semicolon':h.includes('\t')?'tab':'texto';
-
-  if(fmt==='ats'){
-    const cab=lines[0].split('|');
-    const cabecera={ruc:cab[0],razonSocial:cab[1],anio:cab[2],mes:cab[3],numEstab:cab[4],totalVentas:cab[5]};
-    const registros=lines.slice(1).map(l=>{
-      const f=l.split('|'); if(f.length<3) return null;
-      const esC=f[0].length<=2&&f[1]&&(f[1].length>=9&&f[1].length<=13);
-      if(esC) return{_sec:'COMPRAS',tipoId:TIPO_ID[f[0]]||f[0],idProveedor:f[1],tipoComp:TIPO_COMP[f[2]]||f[2],parteRel:f[3]==='1'?'Sí':'No',estab:f[4],ptoEmi:f[5],secuencial:f[6],fecha:f[7],autorizacion:f[8],baseNoGrava:(+f[9]||0).toFixed(2),baseImpGrav:(+f[10]||0).toFixed(2),baseExenta:(+f[11]||0).toFixed(2),ice:(+f[12]||0).toFixed(2),iva:(+f[13]||0).toFixed(2),retIva:(+f[14]||0).toFixed(2),retRenta:(+f[15]||0).toFixed(2)};
-      return{_sec:'VENTAS',tipoId:TIPO_ID[f[0]]||f[0],idCliente:f[1],tipoComp:TIPO_COMP[f[2]]||f[2],estab:f[3],ptoEmi:f[4],secuencial:f[5],fecha:f[6],autorizacion:f[7],baseNoGrava:(+f[8]||0).toFixed(2),baseImpGrav:(+f[9]||0).toFixed(2),iva:(+f[10]||0).toFixed(2),ice:(+f[11]||0).toFixed(2),total:(+f[12]||0).toFixed(2)};
-    }).filter(Boolean);
-    const c=registros.filter(r=>r._sec==='COMPRAS'), v=registros.filter(r=>r._sec==='VENTAS');
-    return{formato:'ats',cabecera,registros,compras:c,ventas:v,resumen:{total:registros.length,compras:c.length,ventas:v.length,ivaCompras:c.reduce((s,r)=>s+(+r.iva||0),0).toFixed(2),ivaVentas:v.reduce((s,r)=>s+(+r.iva||0),0).toFixed(2),retRenta:c.reduce((s,r)=>s+(+r.retRenta||0),0).toFixed(2),retIva:c.reduce((s,r)=>s+(+r.retIva||0),0).toFixed(2)}};
-  }
-  const d=fmt==='semicolon'?';':fmt==='tab'?'\t':'|';
-  if(fmt!=='texto'){
-    const primera=lines[0].split(d);
-    const tieneH=isNaN(primera[0])&&primera[0].length<60;
-    const hdrs=tieneH?primera.map(h=>h.trim()):primera.map((_,i)=>`Campo${i+1}`);
-    const datos=(tieneH?lines.slice(1):lines).map(l=>{const v=l.split(d);const o={};hdrs.forEach((h,i)=>{o[h]=v[i]?.trim()||''});return o;});
-    return{formato:fmt,registros:datos,columnas:hdrs,resumen:{total:datos.length}};
-  }
-  return{formato:'texto',texto:content,registros:[],columnas:[],resumen:{lineas:lines.length}};
+// ══ RENDER VISTA ══
+function renderVista(a) {
+  const vc = document.getElementById('vistaContent');
+  const vb = document.getElementById('vistaBadges');
+  if (a.error) { vc.innerHTML=`<div class="alert alert-error">✗ Error: ${a.error}</div>`; vb.innerHTML=''; return; }
+  if (!a.parsed) { vc.innerHTML='<div class="empty-state"><div>Sin datos</div></div>'; return; }
+  if (a.tipo==='txt') { vb.innerHTML=`<span class="badge badge-blue">TXT</span> <span class="badge badge-gray">${a.parsed.nFilas} registros</span>`; vc.innerHTML = renderTXTVista(a.parsed); }
+  else { vb.innerHTML=`<span class="badge badge-purple">XML</span> <span class="badge badge-blue">${TC[a.parsed.it?.codDoc]||a.parsed.tipo}</span>`; vc.innerHTML = renderXMLVista(a.parsed); }
 }
 
-// ─── RENDER VISTA ────────────────────────────────────────────────────────────
-function renderView(a){
-  const vb=document.getElementById('viewBadges');
-  if(a.tipo==='xml'&&a.parsed){
-    vb.innerHTML=badge(TIPO_COMP[a.parsed.infoTrib?.codDoc]||a.parsed.tipo,'purple')+badge(a.parsed.infoTrib?.ambiente==='Producción'?'Producción':'Pruebas',a.parsed.infoTrib?.ambiente==='Producción'?'green':'yellow');
-  } else {
-    vb.innerHTML=badge('TXT','green')+(a.parsed?.formato?badge(a.parsed.formato.toUpperCase(),'blue'):'');
+function renderTXTVista(p) {
+  const { rows, totales, esPortalSRI, nFilas } = p;
+  
+  let html = '';
+  
+  // Resumen si es portal SRI
+  if (esPortalSRI) {
+    html += `<div class="resumen-grid">
+      <div class="resumen-box"><div class="resumen-label">Registros</div><div class="resumen-value" style="color:#1d4ed8">${nFilas}</div></div>
+      <div class="resumen-box"><div class="resumen-label">Total IVA</div><div class="resumen-value" style="color:#dc2626">$${totales.totalIVA.toFixed(2)}</div></div>
+      <div class="resumen-box"><div class="resumen-label">Base Gravada (÷0.15)</div><div class="resumen-value" style="color:#15803d">$${totales.totalBaseGravada.toFixed(2)}</div></div>
+      <div class="resumen-box"><div class="resumen-label">Importe Total</div><div class="resumen-value" style="color:#1d4ed8">$${totales.totalImporte.toFixed(2)}</div></div>
+    </div>`;
   }
-  const vc=document.getElementById('viewContent');
-  if(a.error){ vc.innerHTML=`<div class="card" style="border-color:#ef444444"><div style="color:#ef4444;font-size:12px">✗ ${a.error}</div></div>`; return; }
-  if(!a.parsed){ vc.innerHTML='<div class="empty"><div>Sin datos parseados</div></div>'; return; }
-  if(a.tipo==='xml') vc.innerHTML=renderXML(a.parsed);
-  else vc.innerHTML=renderTXT(a.parsed);
+
+  // Tabla de datos
+  const colsVis = esPortalSRI 
+    ? ['RAZON_SOCIAL_EMISOR','TIPO_COMPROBANTE','SERIE_COMPROBANTE','FECHA_EMISION','IVA','IMPORTE_TOTAL']
+    : p.headers.slice(0,8);
+  
+  html += `<div class="card" style="padding:0">
+    <div style="padding:8px 12px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:11px;font-weight:700;color:#374151">Registros (${nFilas})</span>
+      ${esPortalSRI?'<span class="badge badge-green">Portal SRI</span>':''}
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>${colsVis.map(c=>`<th>${c.replace('_',' ')}</th>`).join('')}</tr></thead>
+        <tbody>${rows.slice(0,50).map((r,i)=>`<tr>${colsVis.map(c=>{
+          const v = r[c]||'';
+          const isNum = ['IVA','IMPORTE_TOTAL','VALOR_SIN_IMPUESTOS'].includes(c) && !isNaN(parseFloat(v));
+          return `<td class="${isNum?'td-num':''}${c==='IMPORTE_TOTAL'?' td-total':''}">${isNum?'$'+parseFloat(v).toFixed(2):v}</td>`;
+        }).join('')}</tr>`).join('')}</tbody>
+      </table>
+    </div>
+    ${nFilas>50?`<div style="padding:6px 10px;font-size:10px;color:#9ca3af">Mostrando 50 de ${nFilas} registros. Se exportarán todos a Excel.</div>`:''}
+  </div>`;
+  
+  return html;
 }
 
-function renderXML(p){
-  const{tipo,infoTrib,infoDoc,detalles,impuestos,retenciones,pagos,numeroComprobante}=p;
-  const totalVal=infoDoc.importeTotal||infoDoc.valorModificacion||(retenciones.reduce((s,r)=>s+(+r.valorRetenido||0),0).toFixed(2));
-  let html='';
-
-  // Hero
-  html+=`<div class="hero">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
-      <div>
-        <div class="hero-tipo">${TIPO_COMP[infoTrib.codDoc]||tipo}</div>
-        <div class="hero-num">${numeroComprobante}</div>
-        <div class="hero-ruc">${infoTrib.razonSocial} · RUC: ${infoTrib.ruc}</div>
-      </div>
-      <div style="text-align:right">
-        ${badge(infoTrib.ambiente==='Producción'?'Producción':'Pruebas',infoTrib.ambiente==='Producción'?'green':'yellow')}
-        <div class="hero-total" style="margin-top:6px">${fmtMoney(totalVal)}</div>
-        <div class="hero-moneda">${infoDoc.moneda||'DOLAR'}</div>
-      </div>
+function renderXMLVista(p) {
+  const {tipo, it, id, det, imp, ret, pag, numeroComprobante} = p;
+  const total = id.total || ret.reduce((s,r)=>s+(+r.val||0),0).toFixed(2);
+  let html = '';
+  
+  html += `<div style="background:linear-gradient(135deg,#1e3a5f,#1e40af);border-radius:8px;padding:14px;margin-bottom:10px;color:#fff">
+    <div style="font-size:15px;font-weight:800;margin-bottom:3px">${TC[it.codDoc]||tipo}</div>
+    <div style="font-family:monospace;font-size:12px;color:#93c5fd">${numeroComprobante}</div>
+    <div style="font-size:10px;color:#bfdbfe;margin-top:3px">${it.razonSocial} · ${it.ruc}</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:10px">
+      <span class="badge ${it.ambiente==='Producción'?'badge-green':'badge-yellow'}">${it.ambiente}</span>
+      <div style="text-align:right"><div style="font-size:22px;font-weight:900;color:#4ade80">$${total}</div><div style="font-size:9px;color:#bfdbfe">${id.moneda||'USD'}</div></div>
     </div>
   </div>`;
 
-  // Emisor / Receptor
-  html+=`<div class="grid2">
-    <div class="card">
-      <div class="card-title">Emisor</div>
-      ${f('Razón Social',infoTrib.razonSocial)}
-      ${f('Nombre Comercial',infoTrib.nombreComercial)}
-      ${fm('RUC',infoTrib.ruc)}
-      ${f('Dirección',infoTrib.dirMatriz)}
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+    <div class="card"><div class="card-title">Emisor</div>
+      <div class="field"><div class="field-label">Razón Social</div><div class="field-value">${it.razonSocial}</div></div>
+      <div class="field"><div class="field-label">RUC</div><div class="field-value mono">${it.ruc}</div></div>
     </div>
-    <div class="card">
-      <div class="card-title">Receptor</div>
-      ${f('Razón Social',infoDoc.razonSocialComprador||infoDoc.razonSocialSujetoRetenido)}
-      ${f('Tipo ID',infoDoc.tipoIdentificacionComprador||infoDoc.tipoIdentificacionSujetoRetenido)}
-      ${fm('Identificación',infoDoc.identificacionComprador||infoDoc.identificacionSujetoRetenido)}
-      ${f('Fecha Emisión',infoDoc.fechaEmision)}
-      ${f('Período Fiscal',infoDoc.periodoFiscal)}
+    <div class="card"><div class="card-title">Receptor</div>
+      <div class="field"><div class="field-label">Razón Social</div><div class="field-value">${id.rsComp||id.rsRet||'—'}</div></div>
+      <div class="field"><div class="field-label">ID</div><div class="field-value mono">${id.idComp||id.idRet||'—'}</div></div>
+      <div class="field"><div class="field-label">Fecha</div><div class="field-value">${id.fechaEmision||''}</div></div>
     </div>
   </div>`;
 
-  // Clave de acceso
-  if(infoTrib.claveAcceso){
-    const ca=infoTrib.claveAcceso;
-    html+=`<div class="card">
-      <div class="card-title">Clave de Acceso — 49 dígitos</div>
-      <div class="clave">${ca}</div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:10px;color:#64748b">
-        <span>Fecha: <span style="color:#e2e8f0">${ca.substring(0,8).replace(/(\d{2})(\d{2})(\d{4})/,'$1/$2/$3')}</span></span>
-        <span>RUC: <span style="color:#e2e8f0">${ca.substring(10,23)}</span></span>
-        <span>Ambiente: <span style="color:#e2e8f0">${ca.substring(23,24)==='1'?'Pruebas':'Producción'}</span></span>
-        <span>Serie: <span style="color:#e2e8f0">${ca.substring(24,33)}</span></span>
-      </div>
-    </div>`;
+  if (p.it.claveAcceso) html += `<div class="card"><div class="card-title">Clave de Acceso</div><div class="field-value mono">${it.claveAcceso}</div></div>`;
+
+  if (det.length) {
+    html += `<div class="card" style="padding:0"><div style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:11px;font-weight:700">Detalle</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Descripción</th><th>Cant.</th><th>P.Unit.</th><th>Subtotal</th></tr></thead>
+    <tbody>${det.map(d=>`<tr><td>${d.desc}</td><td class="td-num">${d.cant}</td><td class="td-num">$${d.pu}</td><td class="td-num td-total">$${d.sub}</td></tr>`).join('')}</tbody></table></div>
+    <div style="text-align:right;padding:8px 12px;border-top:1px solid #f3f4f6">
+      ${+id.descuento>0?`<span style="color:#dc2626;margin-right:16px;font-size:12px">Desc: -$${id.descuento}</span>`:''}
+      <strong>TOTAL: <span style="color:#15803d;font-family:monospace">$${id.total}</span></strong>
+    </div></div>`;
   }
 
-  // Detalles
-  if(detalles.length){
-    html+=`<div class="card" style="padding:0">
-      <div style="padding:10px 14px;border-bottom:1px solid #1e293b"><div class="card-title" style="margin:0">Detalle de Productos / Servicios</div></div>
-      <div class="tbl-wrap">
-        <table><thead><tr><th>Código</th><th>Descripción</th><th>Cant.</th><th>P.Unit.</th><th>Desc.</th><th>Subtotal</th></tr></thead>
-        <tbody>${detalles.map((d,i)=>`<tr style="background:${i%2?'#13192a':''}"><td style="color:#64748b">${d.codigoPrincipal||'—'}</td><td>${d.descripcion}</td><td style="text-align:right">${d.cantidad}</td><td style="text-align:right">$${d.precioUnitario}</td><td style="text-align:right;color:${+d.descuento>0?'#ef4444':'#64748b'}">$${d.descuento}</td><td style="text-align:right;color:#22c55e;font-weight:700">$${d.precioTotalSinImpuesto}</td></tr>`).join('')}
-        </tbody></table>
-      </div>
-    </div>`;
+  if (ret.length) {
+    html += `<div class="card" style="padding:0"><div style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:11px;font-weight:700">Retenciones</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Tipo</th><th>Descripción</th><th>Base</th><th>%</th><th>Retenido</th></tr></thead>
+    <tbody>${ret.map(r=>`<tr><td><span class="badge ${r.tipo==='Renta'?'badge-yellow':'badge-purple'}">${r.tipo}</span></td><td>${r.desc}</td><td class="td-num">$${r.base}</td><td class="td-num">${r.pct}%</td><td class="td-num td-total" style="color:#dc2626">$${r.val}</td></tr>`).join('')}</tbody></table></div>
+    <div style="text-align:right;padding:8px 12px;border-top:1px solid #f3f4f6"><strong>Total ret: <span style="color:#dc2626;font-family:monospace">$${ret.reduce((s,r)=>s+(+r.val||0),0).toFixed(2)}</span></strong></div></div>`;
   }
-
-  // Impuestos
-  if(impuestos.length){
-    html+=`<div class="card"><div class="card-title">Impuestos</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-        ${impuestos.map(i=>`<div class="infobox"><div class="infobox-label">${i.codigo==='2'?'IVA':i.codigo==='3'?'ICE':`Imp.${i.codigo}`} (${i.codigoPorcentaje}%) · Base: $${i.baseImponible}</div><div class="infobox-value" style="color:#f59e0b">$${i.valor}</div></div>`).join('')}
-      </div>
-      <div class="totales">
-        <div class="total-item"><div class="total-label">Subtotal</div><div class="total-value">$${infoDoc.totalSinImpuestos}</div></div>
-        ${+infoDoc.totalDescuento>0?`<div class="total-item"><div class="total-label">Descuento</div><div class="total-value" style="color:#ef4444">-$${infoDoc.totalDescuento}</div></div>`:''}
-        <div class="total-item"><div class="total-label">TOTAL</div><div class="total-value" style="color:#22c55e;font-size:18px">$${infoDoc.importeTotal}</div></div>
-      </div>
-    </div>`;
-  }
-
-  // Retenciones
-  if(retenciones.length){
-    const totalRet=retenciones.reduce((s,r)=>s+(+r.valorRetenido||0),0).toFixed(2);
-    html+=`<div class="card" style="padding:0">
-      <div style="padding:10px 14px;border-bottom:1px solid #1e293b"><div class="card-title" style="margin:0">Retenciones</div></div>
-      <div class="tbl-wrap"><table><thead><tr><th>Tipo</th><th>Descripción</th><th>Base</th><th>% Ret.</th><th>Valor Ret.</th></tr></thead>
-      <tbody>${retenciones.map((r,i)=>`<tr style="background:${i%2?'#13192a':''}"><td>${badge(r.codigo==='1'?'Renta':'IVA',r.codigo==='1'?'yellow':'purple')}</td><td>${r.descripcion}</td><td style="text-align:right">$${r.baseImponible}</td><td style="text-align:right">${r.porcentajeRetener}%</td><td style="text-align:right;color:#ef4444;font-weight:700">$${r.valorRetenido}</td></tr>`).join('')}
-      </tbody></table></div>
-      <div class="ret-total">Total retenido: <span style="color:#ef4444;font-family:monospace;font-weight:800;font-size:14px">$${totalRet}</span></div>
-    </div>`;
-  }
-
-  // Doc modificado NC/ND
-  if(infoDoc.codDocModificado) html+=`<div class="card"><div class="card-title">Documento Modificado</div>
-    ${f('Tipo',infoDoc.codDocModificado)}${fm('Número',infoDoc.numDocModificado)}${f('Fecha Doc. Sustento',infoDoc.fechaEmisionDocSustento)}${f('Motivo',infoDoc.motivo)}
-    ${infoDoc.valorModificacion?`<div class="field"><div class="field-label">Valor Modificación</div><div class="field-value" style="color:#ef4444;font-weight:700">$${infoDoc.valorModificacion}</div></div>`:''}
-  </div>`;
-
-  // Pagos
-  if(pagos.length) html+=`<div class="card"><div class="card-title">Forma de Pago</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      ${pagos.map(p=>`<div class="infobox"><div class="infobox-label">Forma: ${p.formaPago}</div><div class="infobox-value" style="color:#22c55e">$${p.total}</div>${p.plazo?`<div style="font-size:9px;color:#64748b">${p.plazo} ${p.unidadTiempo}</div>`:''}</div>`).join('')}
-    </div>
-  </div>`;
 
   return html;
 }
 
-function f(l,v){ return v?`<div class="field"><div class="field-label">${l}</div><div class="field-value">${v}</div></div>`:''; }
-function fm(l,v){ return v?`<div class="field"><div class="field-label">${l}</div><div class="field-value mono">${v}</div></div>`:''; }
-
-function renderTXT(p){
-  if(p.formato==='ats') return renderATS(p);
-  if(p.texto) return `<div class="card"><pre style="color:#a8d8a8;font-size:11px;white-space:pre-wrap;font-family:monospace">${p.texto}</pre></div>`;
-  const cols=p.columnas||[];
-  return `<div class="card"><div class="card-title">Datos (${p.resumen?.total||0} registros)</div></div>
-    <div class="card" style="padding:0"><div class="tbl-wrap"><table>
-      <thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
-      <tbody>${(p.registros||[]).slice(0,200).map((r,i)=>`<tr style="background:${i%2?'#13192a':''}">${cols.map(c=>`<td>${r[c]??''}</td>`).join('')}</tr>`).join('')}</tbody>
-    </table></div></div>`;
+// ══ EXPORTAR A EXCEL ══
+async function exportarActivo() {
+  const a = archivos.find(x => x.id === activoId);
+  if (!a?.parsed) { alert('Selecciona un archivo primero'); return; }
+  const hoja = a.nombre.replace(/\.[^.]+$/, '').replace(/[\/\\*\[\]?:]/g,'_').substring(0, 31);
+  if (a.tipo === 'txt') await exportTXT(a.parsed, hoja);
+  else await exportXML(a.parsed, hoja);
 }
 
-function renderATS(p){
-  const{cabecera,resumen,compras,ventas}=p;
-  const colsC=['tipoId','idProveedor','tipoComp','parteRel','estab','ptoEmi','secuencial','fecha','iva','retRenta','retIva'];
-  const colsV=['tipoId','idCliente','tipoComp','estab','ptoEmi','secuencial','fecha','iva','total'];
-  return `<div class="ats-hdr">
-    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
-      <div><div style="font-size:15px;font-weight:800;color:#fff">ATS — Anexo Transaccional</div>
-        <div style="color:#22c55e;font-size:11px;font-family:monospace;margin-top:3px">${cabecera.ruc} · ${cabecera.razonSocial}</div>
-        <div style="color:#64748b;font-size:10px">Período: ${cabecera.mes}/${cabecera.anio}</div>
-      </div>
-      <div style="text-align:right"><div style="color:#64748b;font-size:10px">Total Ventas</div><div style="color:#22c55e;font-size:18px;font-weight:900;font-family:monospace">${fmtMoney(cabecera.totalVentas)}</div></div>
-    </div>
-  </div>
-  <div class="grid2" style="margin-bottom:10px">
-    ${['Compras','Ventas','IVA Compras','IVA Ventas','Ret. Renta','Ret. IVA'].map((l,i)=>{
-      const v=[resumen.compras,resumen.ventas,'$'+resumen.ivaCompras,'$'+resumen.ivaVentas,'$'+resumen.retRenta,'$'+resumen.retIva][i];
-      const c=['#3b82f6','#22c55e','#f59e0b','#22c55e','#ef4444','#a855f7'][i];
-      return `<div class="infobox"><div class="infobox-label">${l}</div><div class="infobox-value" style="color:${c}">${v}</div></div>`;
-    }).join('')}
-  </div>
-  <div class="card" style="padding:0">
-    <div style="padding:8px 14px;border-bottom:1px solid #1e293b;font-size:10px;font-weight:700;color:#f59e0b">COMPRAS (${compras.length})</div>
-    <div class="tbl-wrap"><table><thead><tr>${colsC.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
-    <tbody>${compras.slice(0,100).map((r,i)=>`<tr style="background:${i%2?'#13192a':''}">${colsC.map(c=>`<td>${r[c]??''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-  </div>
-  <div class="card" style="padding:0;margin-top:10px">
-    <div style="padding:8px 14px;border-bottom:1px solid #1e293b;font-size:10px;font-weight:700;color:#22c55e">VENTAS (${ventas.length})</div>
-    <div class="tbl-wrap"><table><thead><tr>${colsV.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
-    <tbody>${ventas.slice(0,100).map((r,i)=>`<tr style="background:${i%2?'#13192a':''}">${colsV.map(c=>`<td>${r[c]??''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-  </div>`;
-}
-
-// ─── EXPORTAR A EXCEL ────────────────────────────────────────────────────────
-function updateExcelPanel(){
-  const a=archivos.find(x=>x.id===activoId);
-  document.getElementById('excelActiveFile').textContent = a ? a.nombre : 'Ningún archivo seleccionado';
-  document.getElementById('cardATS').style.display = a?.parsed?.formato==='ats' ? 'block' : 'none';
-}
-
-async function exportarExcel(){
-  const a=archivos.find(x=>x.id===activoId);
-  if(!a?.parsed){ alert('Selecciona un archivo primero'); return; }
-  const nombreHoja=a.nombre.replace(/\.[^.]+$/,'').substring(0,31);
-  if(a.tipo==='xml') await exportarXMLExcel(a.parsed, nombreHoja);
-  else await exportarTXTExcel(a.parsed, nombreHoja);
-}
-
-async function exportarTodos(){
-  for(const a of archivos){
-    if(!a.parsed) continue;
-    const nombreHoja=a.nombre.replace(/\.[^.]+$/,'').substring(0,28);
-    try{
-      if(a.tipo==='xml') await exportarXMLExcel(a.parsed, nombreHoja);
-      else await exportarTXTExcel(a.parsed, nombreHoja);
-    }catch(e){ console.error(e); }
+async function exportarTodos() {
+  for (const a of archivos) {
+    if (!a.parsed) continue;
+    const hoja = a.nombre.replace(/\.[^.]+$/, '').replace(/[\/\\*\[\]?:]/g,'_').substring(0, 28);
+    try {
+      if (a.tipo === 'txt') await exportTXT(a.parsed, hoja);
+      else await exportXML(a.parsed, hoja);
+    } catch(e) { console.error(e); }
   }
-  showExcelStatus('✓ Todos los archivos exportados','green');
+  showMsg('✓ Todos los archivos exportados', 'success');
 }
 
-async function exportarATS(){
-  const a=archivos.find(x=>x.id===activoId);
-  if(!a?.parsed||a.parsed.formato!=='ats'){ alert('Selecciona un archivo ATS'); return; }
-  const p=a.parsed;
-  try{
-    await Excel.run(async ctx=>{
-      // Hoja Resumen
-      const wsRes=crearOReemplazarHoja(ctx,'ATS_Resumen');
-      const cab=p.cabecera;
-      const resData=[
-        ['RUC','Razón Social','Año','Mes','Total Ventas'],
-        [cab.ruc,cab.razonSocial,cab.anio,cab.mes,+cab.totalVentas||0],
-        [],
-        ['Resumen','Valor'],
-        ['Total Compras',p.resumen.compras],['Total Ventas',p.resumen.ventas],
-        ['IVA Compras',+p.resumen.ivaCompras],['IVA Ventas',+p.resumen.ivaVentas],
-        ['Ret. Renta',+p.resumen.retRenta],['Ret. IVA',+p.resumen.retIva],
-      ];
-      wsRes.getRange(`A1:E${resData.length}`).values=resData;
-      formatearEncabezado(wsRes,1,5);
+async function exportTXT(p, hoja) {
+  if (!officeOK) { showMsg('⚠ Abre desde Excel para exportar', 'error'); return; }
+  showProgress(true);
+  try {
+    await Excel.run(async ctx => {
+      const ws = getOrCreateSheet(ctx, hoja);
 
-      // Hoja Compras
-      const wsC=crearOReemplazarHoja(ctx,'ATS_Compras');
-      const colsC=['tipoId','idProveedor','tipoComp','parteRel','estab','ptoEmi','secuencial','fecha','autorizacion','baseNoGrava','baseImpGrav','baseExenta','ice','iva','retIva','retRenta'];
-      const dataC=[colsC,...p.compras.map(r=>colsC.map(c=>isNaN(+r[c])?r[c]:+r[c]))];
-      if(dataC.length>1) wsC.getRange(`A1:${colLetter(colsC.length)}${dataC.length}`).values=dataC;
-      formatearEncabezado(wsC,1,colsC.length);
+      if (p.esPortalSRI) {
+        // ── Formato IVA_MS_MAYO exacto ──
+        // Cabeceras: las originales + columnas calculadas
+        const hdrsOut = [
+          'RUC_EMISOR','RAZON_SOCIAL_EMISOR','TIPO_COMPROBANTE','SERIE_COMPROBANTE',
+          'CLAVE_ACCESO','FECHA_AUTORIZACION','FECHA_EMISION','IDENTIFICACION_RECEPTOR',
+          'VALOR_SIN_IMPUESTOS','base exenta','base no obje','BASE 0%','BASE GRAVADA',
+          'IVA','IMPORTE_TOTAL','NUMERO_DOCUMENTO_MODIFICADO'
+        ];
 
-      // Hoja Ventas
-      const wsV=crearOReemplazarHoja(ctx,'ATS_Ventas');
-      const colsV=['tipoId','idCliente','tipoComp','estab','ptoEmi','secuencial','fecha','autorizacion','baseNoGrava','baseImpGrav','iva','ice','total'];
-      const dataV=[colsV,...p.ventas.map(r=>colsV.map(c=>isNaN(+r[c])?r[c]:+r[c]))];
-      if(dataV.length>1) wsV.getRange(`A1:${colLetter(colsV.length)}${dataV.length}`).values=dataV;
-      formatearEncabezado(wsV,1,colsV.length);
+        // Fila de encabezados
+        const nCols = hdrsOut.length;
+        const rngHdr = ws.getRange(`A1:${colL(nCols)}1`);
+        rngHdr.values = [hdrsOut];
+        rngHdr.format.fill.color = '#1e3a5f';
+        rngHdr.format.font.color = '#ffffff';
+        rngHdr.format.font.bold = true;
+        rngHdr.format.font.size = 11;
+
+        // Datos fila por fila
+        const nRows = p.rows.length;
+        for (let i = 0; i < nRows; i++) {
+          const r = p.rows[i];
+          const fila = i + 2;
+          const useFormula = document.getElementById('chkFormula').checked;
+
+          // Columnas directas del TXT
+          const directas = [
+            r.RUC_EMISOR || '',
+            r.RAZON_SOCIAL_EMISOR || '',
+            r.TIPO_COMPROBANTE || '',
+            r.SERIE_COMPROBANTE || '',
+            r.CLAVE_ACCESO || '',
+            r.FECHA_AUTORIZACION || '',
+            r.FECHA_EMISION || '',
+            r.IDENTIFICACION_RECEPTOR || '',
+          ];
+          // cols A-H
+          ws.getRange(`A${fila}:H${fila}`).values = [directas];
+
+          // BASE 0% (col L = 12) — del TXT si IVA=0 e IMPORTE>0 => base_0 = IMPORTE_TOTAL
+          const iva = parseFloat(r.IVA) || 0;
+          const total = parseFloat(r.IMPORTE_TOTAL) || 0;
+
+          // BASE 0% — cuando IVA=0 y total>0
+          if (iva === 0 && total > 0) {
+            ws.getCell(fila, 12).values = [[total]]; // col L
+          }
+
+          // BASE GRAVADA (col M = 13)
+          if (useFormula && document.getElementById('chkGravada').checked) {
+            ws.getRange(`M${fila}`).formulas = [[`=N${fila}/0.15`]];
+          } else if (iva > 0) {
+            ws.getRange(`M${fila}`).values = [[iva / 0.15]];
+          }
+
+          // IVA (col N = 14)
+          ws.getRange(`N${fila}`).values = [[iva]];
+
+          // IMPORTE_TOTAL (col O = 15)
+          ws.getRange(`O${fila}`).values = [[total]];
+
+          // NUMERO_DOCUMENTO_MODIFICADO (col P = 16)
+          if (r.NUMERO_DOCUMENTO_MODIFICADO) ws.getRange(`P${fila}`).values = [[r.NUMERO_DOCUMENTO_MODIFICADO]];
+
+          // VALOR_SIN_IMPUESTOS (col I = 9)
+          if (useFormula && document.getElementById('chkValorSin').checked) {
+            ws.getRange(`I${fila}`).formulas = [[`=+O${fila}-N${fila}-M${fila}-L${fila}-K${fila}-J${fila}`]];
+          } else {
+            const baseGrav = iva > 0 ? iva / 0.15 : 0;
+            const base0 = iva === 0 && total > 0 ? total : 0;
+            ws.getRange(`I${fila}`).values = [[total - iva - baseGrav - base0]];
+          }
+        }
+
+        // Formato numérico columnas I,J,K,L,M,N,O
+        if (document.getElementById('chkFormato').checked && nRows > 0) {
+          ['I','J','K','L','M','N','O'].forEach(col => {
+            ws.getRange(`${col}2:${col}${nRows+1}`).numberFormat = [['#,##0.00']];
+          });
+          // Fecha
+          ws.getRange(`F2:G${nRows+1}`).numberFormat = [['DD/MM/YYYY HH:MM:SS']];
+        }
+
+        // Totales en fila final
+        const tFila = nRows + 3;
+        ws.getRange(`A${tFila}`).values = [['TOTALES']];
+        ws.getRange(`A${tFila}`).format.font.bold = true;
+        ['I','J','K','L','M','N','O'].forEach(col => {
+          ws.getRange(`${col}${tFila}`).formulas = [[`=SUM(${col}2:${col}${nRows+1})`]];
+          ws.getRange(`${col}${tFila}`).format.font.bold = true;
+          ws.getRange(`${col}${tFila}`).format.fill.color = '#f0fdf4';
+        });
+
+        // Autofit
+        ws.getUsedRange().format.autofitColumns();
+        // Congelar primera fila
+        ws.freezePanes.freezeRows(1);
+
+      } else {
+        // TXT genérico: exportar tal cual
+        const cols = p.headers;
+        const hdrRow = cols;
+        const nRows = p.rows.length;
+        ws.getRange(`A1:${colL(cols.length)}1`).values = [hdrRow];
+        ws.getRange(`A1:${colL(cols.length)}1`).format.font.bold = true;
+        ws.getRange(`A1:${colL(cols.length)}1`).format.fill.color = '#1e3a5f';
+        ws.getRange(`A1:${colL(cols.length)}1`).format.font.color = '#ffffff';
+        const data = p.rows.map(r => cols.map(c => { const v = r[c]||''; return isNaN(parseFloat(v))||v===''?v:parseFloat(v); }));
+        if (data.length) ws.getRange(`A2:${colL(cols.length)}${data.length+1}`).values = data;
+        ws.getUsedRange().format.autofitColumns();
+      }
 
       await ctx.sync();
-      showExcelStatus('✓ ATS exportado: hojas ATS_Resumen, ATS_Compras, ATS_Ventas','green');
+      showProgress(false);
+      showMsg(`✓ Exportado correctamente → hoja "${hoja}"`, 'success');
+      goTab('excel');
     });
-  } catch(e){ handleExcelError(e); }
+  } catch(e) {
+    showProgress(false);
+    showMsg('✗ ' + (e.message || String(e)), 'error');
+    console.error(e);
+  }
 }
 
-async function exportarXMLExcel(p, nombreHoja){
-  if(!officeReady){ showExcelStatus('⚠ Excel no conectado (modo standalone)','orange'); return; }
-  try{
-    await Excel.run(async ctx=>{
-      const ws=crearOReemplazarHoja(ctx,nombreHoja);
-      let row=1;
+async function exportXML(p, hoja) {
+  if (!officeOK) { showMsg('⚠ Abre desde Excel para exportar', 'error'); return; }
+  showProgress(true);
+  try {
+    await Excel.run(async ctx => {
+      const ws = getOrCreateSheet(ctx, hoja);
+      let fila = 1;
 
-      // Cabecera del comprobante
-      if(document.getElementById('chkCabecera').checked){
-        const datos=[
-          ['COMPROBANTE SRI',''],
-          ['Tipo',TIPO_COMP[p.infoTrib.codDoc]||p.tipo],
-          ['Número',p.numeroComprobante],
-          ['Ambiente',p.infoTrib.ambiente],
-          ['RUC Emisor',p.infoTrib.ruc],
-          ['Razón Social Emisor',p.infoTrib.razonSocial],
-          ['Dirección Matriz',p.infoTrib.dirMatriz],
-          ['Fecha Emisión',p.infoDoc.fechaEmision||''],
-          [p.tipo==='retencion'?'Sujeto Retenido':'Comprador/Receptor',p.infoDoc.razonSocialComprador||p.infoDoc.razonSocialSujetoRetenido||''],
-          ['ID Receptor',p.infoDoc.identificacionComprador||p.infoDoc.identificacionSujetoRetenido||''],
-          ['Período Fiscal',p.infoDoc.periodoFiscal||''],
-          ['Clave de Acceso',p.infoTrib.claveAcceso],
-        ];
-        ws.getRange(`A${row}:B${row+datos.length-1}`).values=datos;
-        ws.getRange(`A${row}`).format.fill.color='#1d4ed8';
-        ws.getRange(`A${row}`).format.font.color='#ffffff';
-        ws.getRange(`A${row}`).format.font.bold=true;
-        row+=datos.length+1;
-      }
+      // Cabecera
+      const infoRows = [
+        ['COMPROBANTE', TC[p.it.codDoc]||p.tipo],
+        ['Número', p.numeroComprobante],
+        ['Fecha Emisión', p.id.fechaEmision||''],
+        ['Ambiente', p.it.ambiente],
+        ['RUC Emisor', p.it.ruc],
+        ['Razón Social Emisor', p.it.razonSocial],
+        ['Dirección Matriz', p.it.dirMatriz||''],
+        ['Receptor / Comprador', p.id.rsComp||p.id.rsRet||''],
+        ['ID Receptor', p.id.idComp||p.id.idRet||''],
+        ['Período Fiscal', p.id.periodoFiscal||''],
+        ['Clave de Acceso', p.it.claveAcceso],
+      ];
+      ws.getRange(`A${fila}:B${fila+infoRows.length-1}`).values = infoRows;
+      ws.getRange(`A${fila}:A${fila+infoRows.length-1}`).format.font.bold = true;
+      ws.getRange(`A${fila}:A${fila+infoRows.length-1}`).format.fill.color = '#e8f0fe';
+      fila += infoRows.length + 1;
 
-      // Detalles
-      if(document.getElementById('chkDetalles').checked&&p.detalles?.length){
-        ws.getRange(`A${row}`).values=[['DETALLE DE PRODUCTOS / SERVICIOS']];
-        ws.getRange(`A${row}`).format.fill.color='#15803d';
-        ws.getRange(`A${row}`).format.font.color='#ffffff';
-        ws.getRange(`A${row}`).format.font.bold=true;
-        row++;
-        const cols=['Código','Descripción','Cantidad','Precio Unitario','Descuento','Subtotal'];
-        ws.getRange(`A${row}:F${row}`).values=[cols];
-        formatearEncabezado(ws,row,cols.length);
-        row++;
-        const filas=p.detalles.map(d=>[d.codigoPrincipal,d.descripcion,+d.cantidad||d.cantidad,+d.precioUnitario,+d.descuento,+d.precioTotalSinImpuesto]);
-        ws.getRange(`A${row}:F${row+filas.length-1}`).values=filas;
-        row+=filas.length+1;
-      }
-
-      // Impuestos
-      if(document.getElementById('chkImpuestos').checked&&p.impuestos?.length){
-        ws.getRange(`A${row}`).values=[['IMPUESTOS']];
-        ws.getRange(`A${row}`).format.fill.color='#78350f';
-        ws.getRange(`A${row}`).format.font.color='#ffffff';
-        ws.getRange(`A${row}`).format.font.bold=true;
-        row++;
-        const colsI=['Código','% Tarifa','Base Imponible','Valor'];
-        ws.getRange(`A${row}:D${row}`).values=[colsI];
-        formatearEncabezado(ws,row,4);
-        row++;
-        const fiI=p.impuestos.map(i=>[i.codigo,i.codigoPorcentaje,+i.baseImponible,+i.valor]);
-        ws.getRange(`A${row}:D${row+fiI.length-1}`).values=fiI;
-        row+=fiI.length+1;
-        // Totales
-        ws.getRange(`A${row}:B${row+2}`).values=[['Subtotal sin impuestos',+p.infoDoc.totalSinImpuestos||0],['Descuento total',+p.infoDoc.totalDescuento||0],['IMPORTE TOTAL',+p.infoDoc.importeTotal||0]];
-        ws.getRange(`B${row+2}`).format.font.bold=true;
-        ws.getRange(`B${row+2}`).format.font.color='#22c55e';
-        row+=4;
+      // Detalle
+      if (p.det.length) {
+        const hdrs = ['Código','Descripción','Cantidad','P. Unitario','Descuento','Subtotal'];
+        ws.getRange(`A${fila}:F${fila}`).values = [hdrs];
+        ws.getRange(`A${fila}:F${fila}`).format.fill.color = '#1e3a5f';
+        ws.getRange(`A${fila}:F${fila}`).format.font.color = '#ffffff';
+        ws.getRange(`A${fila}:F${fila}`).format.font.bold = true;
+        fila++;
+        const data = p.det.map(d=>[d.cod,d.desc,+d.cant||d.cant,+d.pu,+d.desc2,+d.sub]);
+        ws.getRange(`A${fila}:F${fila+data.length-1}`).values = data;
+        ['D','E','F'].forEach(c => ws.getRange(`${c}${fila}:${c}${fila+data.length-1}`).numberFormat=[['#,##0.00']]);
+        fila += data.length;
+        ws.getRange(`E${fila}:F${fila}`).values=[['TOTAL', +p.id.total]];
+        ws.getRange(`E${fila}:F${fila}`).format.font.bold=true;
+        fila += 2;
       }
 
       // Retenciones
-      if(document.getElementById('chkImpuestos').checked&&p.retenciones?.length){
-        ws.getRange(`A${row}`).values=[['RETENCIONES']];
-        ws.getRange(`A${row}`).format.fill.color='#7f1d1d';
-        ws.getRange(`A${row}`).format.font.color='#ffffff';
-        ws.getRange(`A${row}`).format.font.bold=true;
-        row++;
-        const colsR=['Tipo','Código','Descripción','Base Imponible','% Retención','Valor Retenido'];
-        ws.getRange(`A${row}:F${row}`).values=[colsR];
-        formatearEncabezado(ws,row,6);
-        row++;
-        const fiR=p.retenciones.map(r=>[r.codigo==='1'?'Renta':'IVA',r.codigoRetencion,r.descripcion,+r.baseImponible,+r.porcentajeRetener,+r.valorRetenido]);
-        ws.getRange(`A${row}:F${row+fiR.length-1}`).values=fiR;
-        row+=fiR.length;
-        ws.getRange(`A${row}:F${row}`).values=[['','','','','Total retenido',p.retenciones.reduce((s,r)=>s+(+r.valorRetenido||0),0).toFixed(2).toString()]];
-        ws.getRange(`E${row}:F${row}`).format.font.bold=true;
+      if (p.ret.length) {
+        const hdrs = ['Tipo','Código','Descripción','Base Imponible','% Retención','Valor Retenido'];
+        ws.getRange(`A${fila}:F${fila}`).values = [hdrs];
+        ws.getRange(`A${fila}:F${fila}`).format.fill.color = '#7f1d1d';
+        ws.getRange(`A${fila}:F${fila}`).format.font.color = '#ffffff';
+        ws.getRange(`A${fila}:F${fila}`).format.font.bold = true;
+        fila++;
+        const data = p.ret.map(r=>[r.tipo,r.cod,r.desc,+r.base,+r.pct,+r.val]);
+        ws.getRange(`A${fila}:F${fila+data.length-1}`).values = data;
+        ws.getRange(`F${fila+data.length}`).values=[[p.ret.reduce((s,r)=>s+(+r.val||0),0)]];
+        ws.getRange(`E${fila+data.length}`).values=[['TOTAL RETENIDO']];
+        ws.getRange(`E${fila+data.length}:F${fila+data.length}`).format.font.bold=true;
       }
 
-      // Autofit
       ws.getUsedRange().format.autofitColumns();
       await ctx.sync();
-      showExcelStatus(`✓ Exportado a hoja: ${nombreHoja}`,'green');
+      showProgress(false);
+      showMsg(`✓ Exportado → hoja "${hoja}"`, 'success');
+      goTab('excel');
     });
-  } catch(e){ handleExcelError(e); }
+  } catch(e) {
+    showProgress(false);
+    showMsg('✗ ' + (e.message||String(e)), 'error');
+    console.error(e);
+  }
 }
 
-async function exportarTXTExcel(p, nombreHoja){
-  if(!officeReady){ showExcelStatus('⚠ Excel no conectado (modo standalone)','orange'); return; }
-  try{
-    await Excel.run(async ctx=>{
-      if(p.formato==='ats'){ await ctx.sync(); return exportarATS(); }
-      const ws=crearOReemplazarHoja(ctx,nombreHoja);
-      const cols=p.columnas||[];
-      if(!cols.length||!p.registros?.length){ await ctx.sync(); showExcelStatus('Sin datos tabulares','orange'); return; }
-      const filas=[cols,...p.registros.map(r=>cols.map(c=>{ const v=r[c]??''; return isNaN(+v)||v===''?v:+v; }))];
-      const maxCols=cols.length;
-      const maxRows=Math.min(filas.length,1048576);
-      ws.getRange(`A1:${colLetter(maxCols)}${maxRows}`).values=filas.slice(0,maxRows);
-      formatearEncabezado(ws,1,maxCols);
-      ws.getUsedRange().format.autofitColumns();
-      await ctx.sync();
-      showExcelStatus(`✓ Exportado a hoja: ${nombreHoja}`,'green');
-    });
-  } catch(e){ handleExcelError(e); }
-}
-
-// ─── HELPERS EXCEL ────────────────────────────────────────────────────────────
-function crearOReemplazarHoja(ctx, nombre){
-  const sheets=ctx.workbook.worksheets;
-  sheets.load('items/name');
-  // Crear o activar hoja
+// ══ HELPERS ══
+function getOrCreateSheet(ctx, nombre) {
+  const sheets = ctx.workbook.worksheets;
   let ws;
-  try{ ws=sheets.getItem(nombre); ws.getUsedRange().clear(); }
-  catch{ ws=sheets.add(nombre); }
+  try { ws = sheets.getItem(nombre); ws.getUsedRange().clear(); }
+  catch { ws = sheets.add(nombre); }
   ws.activate();
   return ws;
 }
 
-function formatearEncabezado(ws, fila, nCols){
-  const rng=ws.getRange(`A${fila}:${colLetter(nCols)}${fila}`);
-  rng.format.fill.color='#1e293b';
-  rng.format.font.color='#3b82f6';
-  rng.format.font.bold=true;
-}
-
-function colLetter(n){
-  let s='';
-  while(n>0){ const r=(n-1)%26; s=String.fromCharCode(65+r)+s; n=Math.floor((n-1)/26); }
+function colL(n) {
+  let s = '';
+  while (n > 0) { const r = (n-1)%26; s = String.fromCharCode(65+r)+s; n = Math.floor((n-1)/26); }
   return s;
 }
 
-function showExcelStatus(msg, color){
-  const el=document.getElementById('excelStatus');
-  el.style.display='block';
-  el.style.color=color==='green'?'#22c55e':color==='orange'?'#f59e0b':'#ef4444';
-  el.textContent=msg;
-  setStatus(msg, color==='green'?'green':color==='orange'?'yellow':'red');
+function showMsg(msg, tipo) {
+  const el = document.getElementById('excelMsg');
+  el.style.display = 'block';
+  el.className = 'alert alert-'+tipo;
+  el.textContent = msg;
 }
 
-function handleExcelError(e){
-  console.error(e);
-  const msg=e.message||String(e);
-  showExcelStatus('✗ '+msg,'red');
-  setStatus('Error: '+msg,'red');
+function showProgress(v) {
+  document.getElementById('progress').style.display = v ? 'block' : 'none';
 }
 </script>
 </body>
