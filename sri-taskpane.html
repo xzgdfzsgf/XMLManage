@@ -191,8 +191,19 @@ input[type=checkbox]{width:14px;height:14px;accent-color:#1d4ed8}
 let archivos = [], activoId = null;
 let officeOK = false;
 
+function isOfficeReady() {
+  // Verificar de múltiples formas
+  if (officeOK) return true;
+  if (typeof Excel !== 'undefined') return true;
+  if (typeof Office !== 'undefined' && Office.context) return true;
+  return false;
+}
+
 if (typeof Office !== 'undefined') {
-  Office.onReady(() => { officeOK = true; });
+  Office.onReady((info) => { 
+    officeOK = true;
+    console.log('Office ready:', info);
+  });
 }
 
 // ══ TABS ══
@@ -458,139 +469,128 @@ async function exportarTodos() {
 }
 
 async function exportTXT(p, hoja) {
-  if (!officeOK) { showMsg('⚠ Abre desde Excel para exportar', 'error'); return; }
+  if (!isOfficeReady()) { showMsg('⚠ Office no listo, espera 2 segundos e intenta de nuevo', 'error'); return; }
   showProgress(true);
   try {
     await Excel.run(async ctx => {
-      const ws = getOrCreateSheet(ctx, hoja);
+      // ── Crear o limpiar hoja ──
+      const sheets = ctx.workbook.worksheets;
+      sheets.load('items/name');
+      await ctx.sync();
+      let ws;
+      const existe = sheets.items.find(s => s.name === hoja);
+      if (existe) { ws = existe; ws.getUsedRange().clear(); await ctx.sync(); }
+      else { ws = sheets.add(hoja); }
+      ws.activate();
+      await ctx.sync();
 
       if (p.esPortalSRI) {
-        // ── Formato IVA_MS_MAYO exacto ──
-        // Cabeceras: las originales + columnas calculadas
-        const hdrsOut = [
-          'RUC_EMISOR','RAZON_SOCIAL_EMISOR','TIPO_COMPROBANTE','SERIE_COMPROBANTE',
+        const useFormula = document.getElementById('chkFormula')?.checked !== false;
+        const nRows = p.rows.length;
+        const nCols = 16;
+
+        // ── Cabecera ──
+        const hdrs = ['RUC_EMISOR','RAZON_SOCIAL_EMISOR','TIPO_COMPROBANTE','SERIE_COMPROBANTE',
           'CLAVE_ACCESO','FECHA_AUTORIZACION','FECHA_EMISION','IDENTIFICACION_RECEPTOR',
           'VALOR_SIN_IMPUESTOS','base exenta','base no obje','BASE 0%','BASE GRAVADA',
-          'IVA','IMPORTE_TOTAL','NUMERO_DOCUMENTO_MODIFICADO'
-        ];
+          'IVA','IMPORTE_TOTAL','NUMERO_DOCUMENTO_MODIFICADO'];
+        ws.getRange(`A1:P1`).values = [hdrs];
+        ws.getRange(`A1:P1`).format.fill.color = '#1e3a5f';
+        ws.getRange(`A1:P1`).format.font.color = '#ffffff';
+        ws.getRange(`A1:P1`).format.font.bold = true;
+        await ctx.sync();
 
-        // Fila de encabezados
-        const nCols = hdrsOut.length;
-        const rngHdr = ws.getRange(`A1:${colL(nCols)}1`);
-        rngHdr.values = [hdrsOut];
-        rngHdr.format.fill.color = '#1e3a5f';
-        rngHdr.format.font.color = '#ffffff';
-        rngHdr.format.font.bold = true;
-        rngHdr.format.font.size = 11;
-
-        // Datos fila por fila
-        const nRows = p.rows.length;
-        for (let i = 0; i < nRows; i++) {
-          const r = p.rows[i];
-          const fila = i + 2;
-          const useFormula = document.getElementById('chkFormula').checked;
-
-          // Columnas directas del TXT
-          const directas = [
-            r.RUC_EMISOR || '',
-            r.RAZON_SOCIAL_EMISOR || '',
-            r.TIPO_COMPROBANTE || '',
-            r.SERIE_COMPROBANTE || '',
-            r.CLAVE_ACCESO || '',
-            r.FECHA_AUTORIZACION || '',
-            r.FECHA_EMISION || '',
-            r.IDENTIFICACION_RECEPTOR || '',
-          ];
-          // cols A-H
-          ws.getRange(`A${fila}:H${fila}`).values = [directas];
-
-          // BASE 0% (col L = 12) — del TXT si IVA=0 e IMPORTE>0 => base_0 = IMPORTE_TOTAL
-          const iva = parseFloat(r.IVA) || 0;
+        // ── Datos en bloque ──
+        // Cols A-H directas, J-K vacías, L base0, M baseGrav, N IVA, O total, P docMod
+        const bloque = p.rows.map(r => {
+          const iva   = parseFloat(r.IVA) || 0;
           const total = parseFloat(r.IMPORTE_TOTAL) || 0;
-
-          // BASE 0% — cuando IVA=0 y total>0
-          if (iva === 0 && total > 0) {
-            ws.getCell(fila, 12).values = [[total]]; // col L
-          }
-
-          // BASE GRAVADA (col M = 13)
-          if (useFormula && document.getElementById('chkGravada').checked) {
-            ws.getRange(`M${fila}`).formulas = [[`=N${fila}/0.15`]];
-          } else if (iva > 0) {
-            ws.getRange(`M${fila}`).values = [[iva / 0.15]];
-          }
-
-          // IVA (col N = 14)
-          ws.getRange(`N${fila}`).values = [[iva]];
-
-          // IMPORTE_TOTAL (col O = 15)
-          ws.getRange(`O${fila}`).values = [[total]];
-
-          // NUMERO_DOCUMENTO_MODIFICADO (col P = 16)
-          if (r.NUMERO_DOCUMENTO_MODIFICADO) ws.getRange(`P${fila}`).values = [[r.NUMERO_DOCUMENTO_MODIFICADO]];
-
-          // VALOR_SIN_IMPUESTOS (col I = 9)
-          if (useFormula && document.getElementById('chkValorSin').checked) {
-            ws.getRange(`I${fila}`).formulas = [[`=+O${fila}-N${fila}-M${fila}-L${fila}-K${fila}-J${fila}`]];
-          } else {
-            const baseGrav = iva > 0 ? iva / 0.15 : 0;
-            const base0 = iva === 0 && total > 0 ? total : 0;
-            ws.getRange(`I${fila}`).values = [[total - iva - baseGrav - base0]];
-          }
-        }
-
-        // Formato numérico columnas I,J,K,L,M,N,O
-        if (document.getElementById('chkFormato').checked && nRows > 0) {
-          ['I','J','K','L','M','N','O'].forEach(col => {
-            ws.getRange(`${col}2:${col}${nRows+1}`).numberFormat = [['#,##0.00']];
-          });
-          // Fecha
-          ws.getRange(`F2:G${nRows+1}`).numberFormat = [['DD/MM/YYYY HH:MM:SS']];
-        }
-
-        // Totales en fila final
-        const tFila = nRows + 3;
-        ws.getRange(`A${tFila}`).values = [['TOTALES']];
-        ws.getRange(`A${tFila}`).format.font.bold = true;
-        ['I','J','K','L','M','N','O'].forEach(col => {
-          ws.getRange(`${col}${tFila}`).formulas = [[`=SUM(${col}2:${col}${nRows+1})`]];
-          ws.getRange(`${col}${tFila}`).format.font.bold = true;
-          ws.getRange(`${col}${tFila}`).format.fill.color = '#f0fdf4';
+          const base0 = (iva === 0 && total > 0) ? total : 0;
+          const baseG = iva > 0 ? iva / 0.15 : 0;
+          const valSin = total - iva - baseG - base0;
+          return [
+            r.RUC_EMISOR||'',          // A
+            r.RAZON_SOCIAL_EMISOR||'', // B
+            r.TIPO_COMPROBANTE||'',    // C
+            r.SERIE_COMPROBANTE||'',   // D
+            r.CLAVE_ACCESO||'',        // E
+            r.FECHA_AUTORIZACION||'',  // F
+            r.FECHA_EMISION||'',       // G
+            r.IDENTIFICACION_RECEPTOR||'', // H
+            valSin,                    // I VALOR_SIN_IMPUESTOS
+            '',                        // J base exenta
+            '',                        // K base no obje
+            base0 || '',               // L BASE 0%
+            baseG || '',               // M BASE GRAVADA
+            iva,                       // N IVA
+            total,                     // O IMPORTE_TOTAL
+            r.NUMERO_DOCUMENTO_MODIFICADO||'' // P
+          ];
         });
 
-        // Autofit
+        ws.getRange(`A2:P${nRows+1}`).values = bloque;
+        await ctx.sync();
+
+        // ── Fórmulas opcionales encima de valores ──
+        if (useFormula) {
+          const fmlas = p.rows.map((r, i) => {
+            const f = i + 2;
+            return [[`=+O${f}-N${f}-M${f}-L${f}-K${f}-J${f}`]];
+          });
+          for (let i = 0; i < p.rows.length; i++) {
+            const f = i + 2;
+            ws.getRange(`I${f}`).formulas = fmlas[i];
+            const iva = parseFloat(p.rows[i].IVA) || 0;
+            if (iva > 0) ws.getRange(`M${f}`).formulas = [[`=N${f}/0.15`]];
+          }
+          await ctx.sync();
+        }
+
+        // ── Formato numérico ──
+        ['I','J','K','L','M','N','O'].forEach(col => {
+          ws.getRange(`${col}2:${col}${nRows+1}`).numberFormat = [['#,##0.00']];
+        });
+
+        // ── Fila de TOTALES ──
+        const tf = nRows + 3;
+        ws.getRange(`A${tf}`).values = [['TOTALES']];
+        ws.getRange(`A${tf}`).format.font.bold = true;
+        ws.getRange(`A${tf}`).format.fill.color = '#f0fdf4';
+        ['I','J','K','L','M','N','O'].forEach(col => {
+          ws.getRange(`${col}${tf}`).formulas = [[`=SUM(${col}2:${col}${nRows+1})`]];
+          ws.getRange(`${col}${tf}`).format.font.bold = true;
+          ws.getRange(`${col}${tf}`).format.fill.color = '#f0fdf4';
+        });
+
         ws.getUsedRange().format.autofitColumns();
-        // Congelar primera fila
         ws.freezePanes.freezeRows(1);
 
       } else {
-        // TXT genérico: exportar tal cual
-        const cols = p.headers;
-        const hdrRow = cols;
-        const nRows = p.rows.length;
-        ws.getRange(`A1:${colL(cols.length)}1`).values = [hdrRow];
-        ws.getRange(`A1:${colL(cols.length)}1`).format.font.bold = true;
+        const cols = p.headers || [];
+        if (!cols.length) { showMsg('Sin columnas detectadas', 'error'); return; }
+        ws.getRange(`A1:${colL(cols.length)}1`).values = [cols];
         ws.getRange(`A1:${colL(cols.length)}1`).format.fill.color = '#1e3a5f';
         ws.getRange(`A1:${colL(cols.length)}1`).format.font.color = '#ffffff';
-        const data = p.rows.map(r => cols.map(c => { const v = r[c]||''; return isNaN(parseFloat(v))||v===''?v:parseFloat(v); }));
+        ws.getRange(`A1:${colL(cols.length)}1`).format.font.bold = true;
+        const data = p.rows.map(r => cols.map(c => { const v = r[c]||''; return (!isNaN(parseFloat(v))&&v!=='')?parseFloat(v):v; }));
         if (data.length) ws.getRange(`A2:${colL(cols.length)}${data.length+1}`).values = data;
         ws.getUsedRange().format.autofitColumns();
       }
 
       await ctx.sync();
       showProgress(false);
-      showMsg(`✓ Exportado correctamente → hoja "${hoja}"`, 'success');
+      showMsg(`✓ Exportado → hoja "${hoja}"`, 'success');
       goTab('excel');
     });
   } catch(e) {
     showProgress(false);
-    showMsg('✗ ' + (e.message || String(e)), 'error');
-    console.error(e);
+    showMsg('✗ Error: ' + (e.message || String(e)), 'error');
+    console.error('exportTXT error:', e);
   }
 }
 
 async function exportXML(p, hoja) {
-  if (!officeOK) { showMsg('⚠ Abre desde Excel para exportar', 'error'); return; }
+  if (!isOfficeReady()) { showMsg('⚠ Office no listo aún, intenta de nuevo', 'error'); return; }
   showProgress(true);
   try {
     await Excel.run(async ctx => {
@@ -665,8 +665,12 @@ async function exportXML(p, hoja) {
 function getOrCreateSheet(ctx, nombre) {
   const sheets = ctx.workbook.worksheets;
   let ws;
-  try { ws = sheets.getItem(nombre); ws.getUsedRange().clear(); }
-  catch { ws = sheets.add(nombre); }
+  try {
+    ws = sheets.getItem(nombre);
+    ws.getUsedRange().clear();
+  } catch {
+    ws = sheets.add(nombre);
+  }
   ws.activate();
   return ws;
 }
