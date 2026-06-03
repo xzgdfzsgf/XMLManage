@@ -501,34 +501,37 @@ async function exportTXT(p, hoja) {
         await ctx.sync();
 
         // ── Datos en bloque ──
-        // Cols A-H directas, J-K vacías, L base0, M baseGrav, N IVA, O total, P docMod
+        // VALOR_SIN_IMPUESTOS viene directo del TXT (ya incluye propina si la hay)
+        // BASE GRAVADA = IVA/0.15 cuando IVA>0
+        // BASE 0% = IMPORTE_TOTAL cuando IVA=0
+        // base exenta / base no obje = vacías (se llenan manualmente)
         const bloque = p.rows.map(r => {
-          const iva   = parseFloat(r.IVA) || 0;
-          const total = parseFloat(r.IMPORTE_TOTAL) || 0;
-          const base0 = (iva === 0 && total > 0) ? total : 0;
-          const baseG = iva > 0 ? iva / 0.15 : 0;
-          const valSin = total - iva - baseG - base0;
+          const iva    = parseFloat(r.IVA) || 0;
+          const total  = parseFloat(r.IMPORTE_TOTAL) || 0;
+          const valSin = parseFloat(r.VALOR_SIN_IMPUESTOS) || 0;
+          const base0  = (iva === 0 && total > 0) ? total : 0;
+          const baseG  = iva > 0 ? iva / 0.15 : 0;
           return [
-            String(r.RUC_EMISOR||''),          // A — texto
-            r.RAZON_SOCIAL_EMISOR||'', // B
-            r.TIPO_COMPROBANTE||'',    // C
-            String(r.SERIE_COMPROBANTE||''),   // D — texto
-            String(r.CLAVE_ACCESO||''),        // E — texto
-            r.FECHA_AUTORIZACION||'',  // F
-            r.FECHA_EMISION||'',       // G
-            String(r.IDENTIFICACION_RECEPTOR||''), // H — texto
-            valSin,                    // I VALOR_SIN_IMPUESTOS
-            '',                        // J base exenta
-            '',                        // K base no obje
-            base0 || '',               // L BASE 0%
-            baseG || '',               // M BASE GRAVADA
-            iva,                       // N IVA
-            total,                     // O IMPORTE_TOTAL
-            r.NUMERO_DOCUMENTO_MODIFICADO||'' // P
+            String(r.RUC_EMISOR||''),
+            r.RAZON_SOCIAL_EMISOR||'',
+            r.TIPO_COMPROBANTE||'',
+            String(r.SERIE_COMPROBANTE||''),
+            String(r.CLAVE_ACCESO||''),
+            r.FECHA_AUTORIZACION||'',
+            r.FECHA_EMISION||'',
+            String(r.IDENTIFICACION_RECEPTOR||''),
+            valSin,       // I — directo del TXT
+            '',           // J base exenta (manual)
+            '',           // K base no obje (manual)
+            base0||'',    // L BASE 0%
+            baseG||'',    // M BASE GRAVADA
+            iva,          // N IVA
+            total,        // O IMPORTE_TOTAL
+            String(r.NUMERO_DOCUMENTO_MODIFICADO||'')
           ];
         });
 
-        // Forzar texto en columnas A (RUC), D (serie), E (clave acceso), H (ID receptor)
+        // Forzar texto en columnas A,D,E,H,P
         ['A','D','E','H','P'].forEach(col => {
           ws.getRange(`${col}2:${col}${nRows+1}`).numberFormat = [['@']];
         });
@@ -537,18 +540,13 @@ async function exportTXT(p, hoja) {
         ws.getRange(`A2:P${nRows+1}`).values = bloque;
         await ctx.sync();
 
-        // ── Fórmulas opcionales encima de valores ──
+        // Fórmulas M=IVA/0.15 en batch
         if (useFormula) {
-          const fmlas = p.rows.map((r, i) => {
-            const f = i + 2;
-            return [[`=+O${f}-N${f}-M${f}-L${f}-K${f}-J${f}`]];
+          const fmlaM = p.rows.map((r,i) => {
+            const iva = parseFloat(r.IVA)||0;
+            return [iva > 0 ? `=N${i+2}/0.15` : ''];
           });
-          for (let i = 0; i < p.rows.length; i++) {
-            const f = i + 2;
-            ws.getRange(`I${f}`).formulas = fmlas[i];
-            const iva = parseFloat(p.rows[i].IVA) || 0;
-            if (iva > 0) ws.getRange(`M${f}`).formulas = [[`=N${f}/0.15`]];
-          }
+          ws.getRange(`M2:M${nRows+1}`).formulas = fmlaM;
           await ctx.sync();
         }
 
