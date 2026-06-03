@@ -113,6 +113,7 @@ input[type=checkbox]{width:14px;height:14px;accent-color:#1d4ed8}
 <div class="tabs">
   <button class="tab active" onclick="goTab('cargar')" id="tab-cargar">📂 Cargar</button>
   <button class="tab" onclick="goTab('vista')" id="tab-vista">🔍 Vista</button>
+  <button class="tab" onclick="goTab('f104')" id="tab-f104">🧾 104A</button>
   <button class="tab" onclick="goTab('excel')" id="tab-excel">📊 Excel</button>
 </div>
 
@@ -150,6 +151,19 @@ input[type=checkbox]{width:14px;height:14px;accent-color:#1d4ed8}
   </div>
   <div class="content" id="vistaContent">
     <div class="empty-state"><div class="icon">📋</div><div class="title">Selecciona un archivo</div></div>
+  </div>
+</div>
+
+<!-- ══ FORMULARIO 104A ══ -->
+<div class="panel" id="panel-f104">
+  <div class="toolbar">
+    <button class="btn btn-outline btn-sm" onclick="goTab('cargar')">← Volver</button>
+    <span style="font-size:11px;color:#6b7280;font-weight:700">Formulario 104A — Casilleros IVA</span>
+    <div style="flex:1"></div>
+    <button class="btn btn-success btn-sm" onclick="exportar104AExcel()">📊 → Excel</button>
+  </div>
+  <div class="content" id="f104Content">
+    <div class="empty-state"><div class="icon">🧾</div><div class="title">Carga un TXT del SRI primero</div></div>
   </div>
 </div>
 
@@ -208,16 +222,17 @@ if (typeof Office !== 'undefined') {
 
 // ══ TABS ══
 function goTab(t) {
-  ['cargar','vista','excel'].forEach(p => {
+  ['cargar','vista','f104','excel'].forEach(p => {
     document.getElementById('panel-'+p).classList.remove('visible');
-    document.getElementById('tab-'+p).classList.remove('active');
+    document.getElementById('tab-'+p)?.classList.remove('active');
   });
   document.getElementById('panel-'+t).classList.add('visible');
-  document.getElementById('tab-'+t).classList.add('active');
+  document.getElementById('tab-'+t)?.classList.add('active');
   if (t === 'excel') {
     const a = archivos.find(x => x.id === activoId);
     document.getElementById('excelFileLabel').textContent = a ? a.nombre : 'Ningún archivo seleccionado';
   }
+  if (t === 'f104') render104A();
 }
 
 // ══ ARCHIVOS ══
@@ -665,7 +680,161 @@ async function exportXML(p, hoja) {
   }
 }
 
-// ══ HELPERS ══
+// ══ FORMULARIO 104A ══
+function calc104A(rows) {
+  let c500=0, c501=0, c507=0, c509=0, c510=0;
+  rows.forEach(r => {
+    const iva   = parseFloat(r.IVA) || 0;
+    const total = parseFloat(r.IMPORTE_TOTAL) || 0;
+    const base0 = parseFloat(r.BASE_0) || 0; // no existe en TXT
+    if (iva > 0) {
+      // Gravada tarifa 15%
+      c500 += iva / 0.15;
+      c501 += iva;
+    } else if (total > 0) {
+      // IVA=0 → va en tarifa 0% (casillero 507)
+      c507 += total;
+    }
+  });
+  return {
+    c500: +c500.toFixed(2),
+    c501: +c501.toFixed(2),
+    c507: +c507.toFixed(2),
+    c509: 0, // no objeto — manual
+    c510: 0, // exenta — manual
+    c601: +c501.toFixed(2), // crédito tributario = IVA pagado
+  };
+}
+
+function render104A() {
+  const el = document.getElementById('f104Content');
+  const a = archivos.find(x => x.id === activoId);
+  if (!a?.parsed?.rows?.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">🧾</div><div class="title">Carga un TXT del portal SRI primero</div></div>';
+    return;
+  }
+  const p = a.parsed;
+  const c = calc104A(p.rows);
+  const totalAdq = c.c500 + c.c507 + c.c509 + c.c510;
+
+  el.innerHTML = `
+    <div class="alert alert-info" style="margin-bottom:10px">
+      <strong>Formulario 104A — Personas Naturales</strong><br>
+      <span style="font-size:10px">Sección: Adquisiciones y pagos del período</span>
+    </div>
+
+    <div class="card" style="padding:0">
+      <div style="padding:8px 14px;background:#1e3a5f;border-radius:7px 7px 0 0">
+        <span style="color:#fff;font-size:11px;font-weight:700">📋 ADQUISICIONES Y PAGOS</span>
+      </div>
+      ${casillerFila('500', 'Adquisiciones gravadas tarifa 15% — base', c.c500, 'blue')}
+      ${casillerFila('501', 'IVA en adquisiciones tarifa 15%', c.c501, 'blue', true)}
+      ${casillerFila('507', 'Adquisiciones y pagos tarifa 0% (incluye exentas sin IVA)', c.c507, 'gray')}
+      ${casillerFila('509', 'Adquisiciones no objeto de IVA', c.c509, 'gray')}
+      ${casillerFila('510', 'Adquisiciones exentas de IVA', c.c510, 'gray')}
+    </div>
+
+    <div class="card" style="padding:0;margin-top:10px">
+      <div style="padding:8px 14px;background:#1e3a5f;border-radius:7px 7px 0 0">
+        <span style="color:#fff;font-size:11px;font-weight:700">💰 LIQUIDACIÓN DEL IMPUESTO</span>
+      </div>
+      ${casillerFila('601', 'Crédito tributario del período (IVA en compras)', c.c601, 'green', true)}
+      ${casillerFila('605', 'Saldo crédito tributario mes anterior', 0, 'gray', false, true)}
+      ${casillerFila('609', 'Retenciones de IVA recibidas', 0, 'purple', false, true)}
+      ${casillerFila('615', 'Subtotal a pagar / Saldo a favor', 0, 'red', false, true)}
+    </div>
+
+    <div class="card" style="margin-top:10px;background:#f0fdf4;border-color:#bbf7d0">
+      <div class="card-title" style="color:#15803d">⚠️ Notas importantes</div>
+      <ul style="font-size:11px;color:#374151;line-height:1.8;padding-left:16px">
+        <li><strong>Casillero 507</strong>: incluye farmacias, seguros, bancos (IVA=0). Verifica si son tarifa 0% o exentas para separar en 509/510.</li>
+        <li><strong>Casillero 509/510</strong>: llena manualmente si identificas compras no objeto o exentas.</li>
+        <li><strong>Casillero 605</strong>: copia del casillero 615 de la declaración del mes anterior.</li>
+        <li><strong>Casillero 609</strong>: suma las retenciones de IVA que te hicieron (de comprobantes de retención).</li>
+        <li>Los valores de <strong>ventas (300-399)</strong> los debes ingresar tú manualmente en el SRI en línea.</li>
+      </ul>
+    </div>
+
+    <div style="margin-top:10px;display:flex;gap:8px">
+      <button class="btn btn-success" style="flex:1" onclick="exportar104AExcel()">📊 Exportar casilleros → Excel</button>
+    </div>
+  `;
+}
+
+function casillerFila(num, desc, val, color, isIVA=false, isManual=false) {
+  const colors = {blue:'#dbeafe', green:'#dcfce7', red:'#fee2e2', gray:'#f3f4f6', purple:'#f3e8ff'};
+  const textColors = {blue:'#1d4ed8', green:'#15803d', red:'#dc2626', gray:'#374151', purple:'#7e22ce'};
+  const bg = colors[color]||'#f3f4f6';
+  const tc = textColors[color]||'#374151';
+  return `
+    <div style="display:flex;align-items:center;padding:8px 14px;border-bottom:1px solid #e5e7eb;gap:10px">
+      <div style="background:${bg};color:${tc};border-radius:4px;padding:3px 8px;font-size:11px;font-weight:800;min-width:36px;text-align:center">${num}</div>
+      <div style="flex:1;font-size:11px;color:#374151">${desc}</div>
+      <div style="font-family:monospace;font-weight:700;color:${isManual?'#9ca3af':tc};font-size:12px;min-width:70px;text-align:right">
+        ${isManual ? '<em style="font-size:10px">manual</em>' : '$'+val.toFixed(2)}
+      </div>
+    </div>`;
+}
+
+async function exportar104AExcel() {
+  const a = archivos.find(x => x.id === activoId);
+  if (!a?.parsed?.rows?.length) { alert('Carga un TXT primero'); return; }
+  if (!isOfficeReady()) { showMsg('⚠ Office no listo', 'error'); return; }
+  const c = calc104A(a.parsed.rows);
+  showProgress(true);
+  try {
+    await Excel.run(async ctx => {
+      const sheets = ctx.workbook.worksheets;
+      sheets.load('items/name');
+      await ctx.sync();
+      let ws;
+      const existe = sheets.items.find(s => s.name === 'Formulario 104A');
+      if (existe) { ws = existe; ws.getUsedRange().clear(); await ctx.sync(); }
+      else { ws = sheets.add('Formulario 104A'); }
+      ws.activate();
+      await ctx.sync();
+
+      const data = [
+        ['FORMULARIO 104A — DECLARACIÓN IVA PERSONA NATURAL', '','',''],
+        ['Sección: Adquisiciones y Pagos del Período','','',''],
+        ['','','',''],
+        ['CASILLERO','DESCRIPCIÓN','BASE','IVA'],
+        ['500','Adquisiciones gravadas tarifa 15% — base imponible', c.c500, ''],
+        ['501','IVA en adquisiciones tarifa 15%', '', c.c501],
+        ['507','Adquisiciones y pagos tarifa 0% (sin IVA)', c.c507, ''],
+        ['509','Adquisiciones no objeto de IVA (manual)', '', ''],
+        ['510','Adquisiciones exentas (manual)', '', ''],
+        ['','','',''],
+        ['LIQUIDACIÓN DEL IMPUESTO','','',''],
+        ['601','Crédito tributario del período (IVA en compras)', '', c.c601],
+        ['605','Saldo crédito tributario mes anterior (manual)', '', ''],
+        ['609','Retenciones de IVA recibidas (manual)', '', ''],
+        ['615','Subtotal a pagar / Saldo a favor (calculado en SRI)', '', ''],
+      ];
+
+      ws.getRange(`A1:D${data.length}`).values = data;
+
+      // Formato
+      ws.getRange('A1:D1').format.fill.color = '#1e3a5f';
+      ws.getRange('A1:D1').format.font.color = '#ffffff';
+      ws.getRange('A1:D1').format.font.bold = true;
+      ws.getRange('A4:D4').format.fill.color = '#e8f0fe';
+      ws.getRange('A4:D4').format.font.bold = true;
+      ws.getRange('A11:D11').format.fill.color = '#e8f0fe';
+      ws.getRange('A11:D11').format.font.bold = true;
+      ws.getRange('C5:D15').numberFormat = [['#,##0.00']];
+      ws.getUsedRange().format.autofitColumns();
+
+      await ctx.sync();
+      showProgress(false);
+      showMsg('✓ Casilleros 104A exportados → hoja "Formulario 104A"', 'success');
+    });
+  } catch(e) {
+    showProgress(false);
+    showMsg('✗ ' + e.message, 'error');
+  }
+}
+
 function getOrCreateSheet(ctx, nombre) {
   const sheets = ctx.workbook.worksheets;
   let ws;
