@@ -509,14 +509,14 @@ async function exportTXT(p, hoja) {
           const baseG = iva > 0 ? iva / 0.15 : 0;
           const valSin = total - iva - baseG - base0;
           return [
-            r.RUC_EMISOR||'',          // A
+            String(r.RUC_EMISOR||''),          // A — texto
             r.RAZON_SOCIAL_EMISOR||'', // B
             r.TIPO_COMPROBANTE||'',    // C
-            r.SERIE_COMPROBANTE||'',   // D
-            r.CLAVE_ACCESO||'',        // E
+            String(r.SERIE_COMPROBANTE||''),   // D — texto
+            String(r.CLAVE_ACCESO||''),        // E — texto
             r.FECHA_AUTORIZACION||'',  // F
             r.FECHA_EMISION||'',       // G
-            r.IDENTIFICACION_RECEPTOR||'', // H
+            String(r.IDENTIFICACION_RECEPTOR||''), // H — texto
             valSin,                    // I VALOR_SIN_IMPUESTOS
             '',                        // J base exenta
             '',                        // K base no obje
@@ -527,6 +527,12 @@ async function exportTXT(p, hoja) {
             r.NUMERO_DOCUMENTO_MODIFICADO||'' // P
           ];
         });
+
+        // Forzar texto en columnas A (RUC), D (serie), E (clave acceso), H (ID receptor)
+        ['A','D','E','H','P'].forEach(col => {
+          ws.getRange(`${col}2:${col}${nRows+1}`).numberFormat = [['@']];
+        });
+        await ctx.sync();
 
         ws.getRange(`A2:P${nRows+1}`).values = bloque;
         await ctx.sync();
