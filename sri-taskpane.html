@@ -363,52 +363,69 @@ function parsearTXT(content){
 }
 
 // ══════════════════════════════════════════════════════════
-// CLASIFICACIÓN DE BASES — LÓGICA CORRECTA
+// CLASIFICACIÓN DE BASES — LÓGICA DEFINITIVA CORRECTA
 // ══════════════════════════════════════════════════════════
+//
 // El TXT del SRI trae:
-//   VALOR_SIN_IMPUESTOS = base gravada real (SUBTOTAL SIN IMPUESTOS del XML)
-//   IVA                 = impuesto calculado sobre esa base
-//   IMPORTE_TOTAL       = VALOR_SIN_IMPUESTOS + IVA + ICE + PROPINA + otros
+//   VALOR_SIN_IMPUESTOS = SUBTOTAL SIN IMPUESTOS del XML
+//                       = SUBTOTAL 15% + SUBTOTAL 0% + SUBTOTAL EXENTO + NO OBJETO
+//                       (todos mezclados en un solo número)
+//   IVA                 = impuesto calculado
+//   IMPORTE_TOTAL       = VALOR_SIN_IMPUESTOS + IVA + ICE
 //
-// Por tanto:
-//   Si IVA = 0  → todo el TOTAL es BASE 0% (casillero 507)
-//   Si IVA > 0  → BASE GRAVADA = VALOR_SIN_IMPUESTOS (directo del TXT)
-//                 DIFF = TOTAL - VALOR_SIN_IMPUESTOS - IVA
-//                 Si DIFF > 0.10 → puede ser ICE, propina, o mezcla
-//                 ICE no va en ningún casillero de IVA
-//                 Propina tampoco va en IVA
-//                 → marcar como "verificar con XML" solo cuando DIFF > 0.10
+// DETECCIÓN DE CASOS:
 //
-// NOTA: NO usar IVA/0.15 porque la tarifa puede ser 8%, 5%, etc.
-// VALOR_SIN_IMPUESTOS del TXT = SUBTOTAL SIN IMPUESTOS del PDF = base gravada real
+// 1) IVA = 0 → Todo es BASE 0% (casillero 507)
+//
+// 2) IVA > 0, tasa implícita (IVA/VALOR_SIN_IMPUESTOS) entre 5% y 20%
+//    → VALOR_SIN_IMPUESTOS es SOLO base gravada (no hay base 0% mezclada)
+//    → BASE GRAVADA = VALOR_SIN_IMPUESTOS directamente ✓
+//    → Si TOTAL - VALOR_SIN_IMPUESTOS - IVA > 0.10 → hay ICE
+//    Tasas válidas: 15% (normal), 8% (alimentos restaurante tarifa reducida), 5%
+//
+// 3) IVA > 0, tasa implícita < 5% o > 20%
+//    → VALOR_SIN_IMPUESTOS mezcla base 15% + base 0% (factura MIXTA)
+//    → No podemos separar sin el XML
+//    → Estimamos: BASE GRAVADA = IVA/0.15, BASE 0% = VALOR_SIN_IMPUESTOS - BASE_GRAVADA
+//    → Marcamos como MIXTA → pedir XML para corregir exactamente
+//
+// EJEMPLOS REALES:
+//   TIPTI (supermercado): tasa=4.76% → MIXTA (frutas=0%, productos con IVA=15%)
+//   RESTAURANTES DEL PACIFICO: tasa=8% → SIMPLE tarifa reducida alimentos
+//   DIRECTV: tasa=15.7% → SIMPLE + ICE ($1.03)
+//   BANCO, FARMACIAS: IVA=0 → BASE 0%
 
 function clasificarFila(r){
   const iva    = parseFloat(r.IVA||0)||0;
   const total  = parseFloat(r.IMPORTE_TOTAL||0)||0;
   const valSin = parseFloat(r.VALOR_SIN_IMPUESTOS||0)||0;
-  const rs     = r.RAZON_SOCIAL_EMISOR||'';
-  let baseGravada=0, base0=0, propina=0, baseExenta=0, baseNoObje=0, alerta='', ice=0;
+  let baseGravada=0, base0=0, propina=0, baseExenta=0, baseNoObje=0, ice=0, alerta='';
 
   if(total===0) return{...r,baseGravada,base0,propina,baseExenta,baseNoObje,ice,iva,total,valSin,alerta:'sin datos'};
 
   if(iva===0){
-    // Sin IVA → todo es base tarifa 0% (casillero 507)
+    // Sin IVA → todo es base tarifa 0%
     base0 = total;
   } else {
-    // Con IVA → base gravada = VALOR_SIN_IMPUESTOS directamente
-    baseGravada = valSin;
-    // Calcular diferencia
+    // Calcular tasa implícita
+    const tasaImplicita = valSin > 0 ? (iva / valSin) * 100 : 0;
     const diff = parseFloat((total - valSin - iva).toFixed(2));
-    if(diff > 0.10){
-      // La diferencia puede ser ICE, propina real, o facturas mixtas
-      // ICE: emisores como DIRECTV, bebidas, cigarrillos, autos, perfumes
-      // Propina: restaurantes que la incluyen como campo separado en XML
-      // Para el IVA ninguno de los dos va en ningún casillero
-      // Marcar para que el usuario lo revise con XML
-      ice = diff; // lo llamamos ice/otros — no declara en IVA
-      alerta = 'diff: ICE/propina/revisar XML';
-    } else if(diff < -0.10){
-      alerta = 'revisar: no cuadra';
+
+    if(tasaImplicita >= 4 && tasaImplicita <= 20){
+      // Tasa válida (5%, 8%, 12%, 15%) → VALOR_SIN_IMPUESTOS es solo base gravada
+      baseGravada = valSin;
+      if(diff > 0.10){
+        // Hay ICE u otro impuesto adicional
+        ice = diff;
+        alerta = 'tiene ICE: verificar con XML';
+      }
+    } else {
+      // Tasa fuera de rango → factura MIXTA (base 15% + base 0% mezcladas)
+      // Estimamos con IVA/0.15 la parte gravada
+      baseGravada = parseFloat((iva / 0.15).toFixed(2));
+      base0       = parseFloat((valSin - baseGravada).toFixed(2));
+      if(base0 < 0) base0 = 0;
+      alerta = 'mixta: sube XML para corregir';
     }
   }
 
@@ -416,7 +433,7 @@ function clasificarFila(r){
     ...r,
     baseGravada: parseFloat(baseGravada.toFixed(2)),
     base0:       parseFloat(base0.toFixed(2)),
-    propina:     parseFloat(propina.toFixed(2)),
+    propina:     0, // la propina real se obtiene SOLO del XML
     ice:         parseFloat((ice||0).toFixed(2)),
     baseExenta, baseNoObje, iva, total, valSin, alerta, corregido:false
   };
@@ -543,11 +560,12 @@ function renderFixPanel(){
 
   if(pendientes.length>0){
     html+=`<div class="alert alert-warn">
-      <strong>⚠️ ${pendientes.length} factura${pendientes.length>1?'s':''} con bases ambiguas</strong><br>
-      Descarga el XML de cada factura desde el portal SRI y arrástralo aquí para corregir automáticamente.
+      <strong>⚠️ ${pendientes.length} factura${pendientes.length>1?'s':''} que necesitan XML para clasificar bases exactas</strong><br>
+      Son facturas <strong>mixtas</strong> (parte a 15% + parte a 0%, como supermercados) o con <strong>ICE</strong> (DIRECTV).<br>
+      El TXT del SRI no puede separar las bases — solo el XML lo tiene exacto.<br>
+      Descarga el XML desde el portal SRI → Comprobantes recibidos → clic en la factura → Descargar XML.
     </div>
 
-    <!-- Drop zone para XMLs de corrección -->
     <div class="dropzone dz-xml" style="margin-bottom:12px"
       onclick="document.getElementById('fiXml').click()"
       ondragover="event.preventDefault();this.classList.add('drag')"
@@ -555,22 +573,23 @@ function renderFixPanel(){
       ondrop="onDropXml(event)">
       <input type="file" id="fiXml" accept=".xml" multiple onchange="onFilesXml(this.files)">
       📄 Arrastra aquí los XML de las facturas marcadas<br>
-      <span style="font-size:10px">Puedes soltar varios a la vez</span>
+      <span style="font-size:10px">Varios a la vez · Se emparejan automáticamente por número de serie o clave de acceso</span>
     </div>
 
-    <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px">Facturas pendientes de corrección:</div>`;
+    <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px">Facturas pendientes (${pendientes.length}):</div>`;
 
     pendientes.forEach(r=>{
       const baseGEst=r.baseGravada.toFixed(2), b0Est=r.base0.toFixed(2);
+      const esICE = r.alerta?.includes('ICE');
       html+=`<div class="fix-item" id="fix-${r.SERIE_COMPROBANTE}">
         <div class="fix-title">📄 ${r.RAZON_SOCIAL_EMISOR||'Sin nombre'}</div>
         <div class="fix-sub">Serie: <strong>${r.SERIE_COMPROBANTE||'—'}</strong> · Fecha: ${r.FECHA_EMISION||'—'}</div>
         <div class="fix-valores">
-          <div class="fix-val"><div class="fix-val-label">BASE GRAVADA est.</div><div class="fix-val-num" style="color:#15803d">$${baseGEst}</div></div>
+          <div class="fix-val"><div class="fix-val-label">BASE GRAV. est.</div><div class="fix-val-num" style="color:#15803d">$${baseGEst}</div></div>
           <div class="fix-val"><div class="fix-val-label">BASE 0% est.</div><div class="fix-val-num" style="color:#6b7280">$${b0Est}</div></div>
-          <div class="fix-val"><div class="fix-val-label">IVA</div><div class="fix-val-num" style="color:#dc2626">$${r.iva.toFixed(2)}</div></div>
+          <div class="fix-val"><div class="fix-val-label">${esICE?'ICE est.':'IVA'}</div><div class="fix-val-num" style="color:#dc2626">$${esICE?(r.ice||0).toFixed(2):r.iva.toFixed(2)}</div></div>
         </div>
-        <div style="font-size:10px;color:#92400e">⚠️ ${r.alerta} — sube el XML para corregir</div>
+        <div style="font-size:10px;color:#92400e">⚠️ ${r.alerta}</div>
       </div>`;
     });
   }
@@ -652,10 +671,10 @@ function renderTXTVista(p){
 
   html+=`<div class="resumen-grid">
     <div class="resumen-box"><div class="resumen-label">Registros</div><div class="resumen-value" style="color:#1d4ed8">${nFilas}</div></div>
-    <div class="resumen-box"><div class="resumen-label">Total IVA</div><div class="resumen-value" style="color:#dc2626">$${(totales.totalIVA||0).toFixed(2)}</div></div>
-    <div class="resumen-box"><div class="resumen-label">Base Gravada (cas. 500)</div><div class="resumen-value" style="color:#15803d">$${(totales.totalBaseGrav||0).toFixed(2)}</div></div>
-    <div class="resumen-box"><div class="resumen-label">Base Tarifa 0% (cas. 507)</div><div class="resumen-value" style="color:#6b7280">$${(totales.totalBase0||0).toFixed(2)}</div></div>
-    <div class="resumen-box"><div class="resumen-label">ICE / otros (no IVA)</div><div class="resumen-value" style="color:#c2410c">$${(totales.totalIce||0).toFixed(2)}</div></div>
+    <div class="resumen-box"><div class="resumen-label">Total IVA (cas. 501)</div><div class="resumen-value" style="color:#dc2626">$${(totales.totalIVA||0).toFixed(2)}</div></div>
+    <div class="resumen-box"><div class="resumen-label">Base Gravada est. (cas. 500)</div><div class="resumen-value" style="color:#15803d">$${(totales.totalBaseGrav||0).toFixed(2)}</div></div>
+    <div class="resumen-box"><div class="resumen-label">Base 0% est. (cas. 507)</div><div class="resumen-value" style="color:#6b7280">$${(totales.totalBase0||0).toFixed(2)}</div></div>
+    <div class="resumen-box"><div class="resumen-label">ICE/otros (no declara)</div><div class="resumen-value" style="color:#c2410c">$${(totales.totalIce||0).toFixed(2)}</div></div>
     <div class="resumen-box"><div class="resumen-label">Importe Total</div><div class="resumen-value" style="color:#1d4ed8">$${(totales.totalImporte||0).toFixed(2)}</div></div>
   </div>`;
 
