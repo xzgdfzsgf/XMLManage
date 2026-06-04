@@ -229,9 +229,13 @@ function goTab(t) {
 function actualizarBadgeFix() {
   const a = archivos.find(x=>x.id===activoId);
   if(!a?.parsed?.rowsClasif) return;
-  const pendientes = a.parsed.rowsClasif.filter(r=>r.alerta&&r.alerta!=='sin datos'&&!r.corregido);
+  // Solo contar las MIXTAS reales que necesitan XML, no las de propina/ICE
+  const pendientes = a.parsed.rowsClasif.filter(r=>
+    r.alerta && r.alerta!=='sin datos' &&
+    r.alerta!=='propina/ICE: no declara en IVA' &&
+    !r.corregido
+  );
   const tab = document.getElementById('tab-fix');
-  // badge rojo con número
   const existente = tab.querySelector('.badge-pill');
   if(existente) existente.remove();
   if(pendientes.length>0){
@@ -331,7 +335,7 @@ function renderFileList(){
   const el=document.getElementById('fileList');
   if(!archivos.length){ el.innerHTML='<div class="empty-state"><div class="icon">🇪🇨</div><div class="title">Sin archivos</div></div>'; return; }
   el.innerHTML=archivos.map(a=>{
-    const pendientes=a.parsed?.rowsClasif?.filter(r=>r.alerta&&r.alerta!=='sin datos'&&!r.corregido).length||0;
+    const pendientes=a.parsed?.rowsClasif?.filter(r=>r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'&&!r.corregido).length||0;
     const b1='<span class="badge badge-blue">TXT</span>';
     const b2=a.parsed?.nFilas?`<span class="badge badge-gray">${a.parsed.nFilas} filas</span>`:'';
     const bwarn=pendientes>0?`<span class="badge badge-yellow">⚠ ${pendientes}</span>`:'';
@@ -363,37 +367,28 @@ function parsearTXT(content){
 }
 
 // ══════════════════════════════════════════════════════════
-// CLASIFICACIÓN DE BASES — LÓGICA DEFINITIVA CORRECTA
+// CLASIFICACIÓN DE BASES — LÓGICA DEFINITIVA
 // ══════════════════════════════════════════════════════════
 //
-// El TXT del SRI trae:
-//   VALOR_SIN_IMPUESTOS = SUBTOTAL SIN IMPUESTOS del XML
-//                       = SUBTOTAL 15% + SUBTOTAL 0% + SUBTOTAL EXENTO + NO OBJETO
-//                       (todos mezclados en un solo número)
-//   IVA                 = impuesto calculado
-//   IMPORTE_TOTAL       = VALOR_SIN_IMPUESTOS + IVA + ICE
+// El TXT tiene: VALOR_SIN_IMPUESTOS (valSin), IVA, IMPORTE_TOTAL
 //
-// DETECCIÓN DE CASOS:
+// valSin = SUBTOTAL SIN IMPUESTOS del XML
+//        = base gravada (todo tipo de tarifas: 15%, 8%, 5%)
+//        + base 0% si la factura es mixta
+//        (NO incluye ICE ni propina)
 //
-// 1) IVA = 0 → Todo es BASE 0% (casillero 507)
+// REGLAS:
+// 1) IVA=0 → BASE 0% = TOTAL (casillero 507)
 //
-// 2) IVA > 0, tasa implícita (IVA/VALOR_SIN_IMPUESTOS) entre 5% y 20%
-//    → VALOR_SIN_IMPUESTOS es SOLO base gravada (no hay base 0% mezclada)
-//    → BASE GRAVADA = VALOR_SIN_IMPUESTOS directamente ✓
-//    → Si TOTAL - VALOR_SIN_IMPUESTOS - IVA > 0.10 → hay ICE
-//    Tasas válidas: 15% (normal), 8% (alimentos restaurante tarifa reducida), 5%
+// 2) IVA>0, tasa=IVA/valSin > 1% → SIMPLE (no mixta)
+//    BASE GRAVADA = valSin ✓
+//    Si TOTAL - valSin - IVA > $0.10 → ese resto es PROPINA o ICE
+//    (propina: restaurantes/delivery · ICE: DIRECTV, bebidas)
+//    Ambos van en columna informativa Q, NO en casilleros IVA
 //
-// 3) IVA > 0, tasa implícita < 5% o > 20%
-//    → VALOR_SIN_IMPUESTOS mezcla base 15% + base 0% (factura MIXTA)
-//    → No podemos separar sin el XML
-//    → Estimamos: BASE GRAVADA = IVA/0.15, BASE 0% = VALOR_SIN_IMPUESTOS - BASE_GRAVADA
-//    → Marcamos como MIXTA → pedir XML para corregir exactamente
-//
-// EJEMPLOS REALES:
-//   TIPTI (supermercado): tasa=4.76% → MIXTA (frutas=0%, productos con IVA=15%)
-//   RESTAURANTES DEL PACIFICO: tasa=8% → SIMPLE tarifa reducida alimentos
-//   DIRECTV: tasa=15.7% → SIMPLE + ICE ($1.03)
-//   BANCO, FARMACIAS: IVA=0 → BASE 0%
+// 3) IVA>0, tasa < 1% → MIXTA (base 15% + base 0% mezcladas en valSin)
+//    Solo DIFARE en tu TXT. Estimamos base15=IVA/0.15
+//    Necesita XML para ser exacto → alerta
 
 function clasificarFila(r){
   const iva    = parseFloat(r.IVA||0)||0;
@@ -407,25 +402,25 @@ function clasificarFila(r){
     // Sin IVA → todo es base tarifa 0%
     base0 = total;
   } else {
-    // Calcular tasa implícita
-    const tasaImplicita = valSin > 0 ? (iva / valSin) * 100 : 0;
-    const diff = parseFloat((total - valSin - iva).toFixed(2));
+    const tasa = valSin > 0 ? (iva/valSin)*100 : 0;
+    const diff  = parseFloat((total - valSin - iva).toFixed(2));
 
-    if(tasaImplicita >= 4 && tasaImplicita <= 20){
-      // Tasa válida (5%, 8%, 12%, 15%) → VALOR_SIN_IMPUESTOS es solo base gravada
+    if(tasa >= 1){
+      // SIMPLE: valSin es solo base gravada (tarifa 15%, 8%, 5%)
       baseGravada = valSin;
       if(diff > 0.10){
-        // Hay ICE u otro impuesto adicional
-        ice = diff;
-        alerta = 'tiene ICE: verificar con XML';
+        // Propina o ICE — va en columna Q informativa, NO declara en IVA
+        propina = diff; // lo llamamos propina genérico (incluye ICE)
+        // Solo DIRECTV tiene ICE real, HORPAXI/DONOSO tienen propina
+        if(alerta === '') alerta = 'propina/ICE: no declara en IVA';
       }
     } else {
-      // Tasa fuera de rango → factura MIXTA (base 15% + base 0% mezcladas)
-      // Estimamos con IVA/0.15 la parte gravada
-      baseGravada = parseFloat((iva / 0.15).toFixed(2));
+      // MIXTA: valSin mezcla base 15% + base 0%
+      // Solo DIFARE en la práctica (tasa < 1%)
+      baseGravada = parseFloat((iva/0.15).toFixed(2));
       base0       = parseFloat((valSin - baseGravada).toFixed(2));
       if(base0 < 0) base0 = 0;
-      alerta = 'mixta: sube XML para corregir';
+      alerta = 'mixta: sube XML para separar base 0%';
     }
   }
 
@@ -433,14 +428,14 @@ function clasificarFila(r){
     ...r,
     baseGravada: parseFloat(baseGravada.toFixed(2)),
     base0:       parseFloat(base0.toFixed(2)),
-    propina:     0, // la propina real se obtiene SOLO del XML
-    ice:         parseFloat((ice||0).toFixed(2)),
+    propina:     parseFloat((propina||0).toFixed(2)),
+    ice:         0, // el ICE real se obtiene del XML
     baseExenta, baseNoObje, iva, total, valSin, alerta, corregido:false
   };
 }
 
 function calcularTotales(rows){
-  let tIVA=0,tBaseG=0,tBase0=0,tProp=0,tTotal=0,tExenta=0,tNoObje=0,tIce=0;
+  let tIVA=0,tBaseG=0,tBase0=0,tProp=0,tTotal=0,tExenta=0,tNoObje=0;
   rows.forEach(r=>{
     tIVA   += r.iva||0;
     tBaseG += r.baseGravada||0;
@@ -449,7 +444,6 @@ function calcularTotales(rows){
     tTotal += r.total||0;
     tExenta+= r.baseExenta||0;
     tNoObje+= r.baseNoObje||0;
-    tIce   += r.ice||0;
   });
   return {
     totalIVA:      +tIVA.toFixed(2),
@@ -459,7 +453,6 @@ function calcularTotales(rows){
     totalImporte:  +tTotal.toFixed(2),
     totalExenta:   +tExenta.toFixed(2),
     totalNoObje:   +tNoObje.toFixed(2),
-    totalIce:      +tIce.toFixed(2),
     c500: +tBaseG.toFixed(2),
     c501: +tIVA.toFixed(2),
     c507: +tBase0.toFixed(2),
@@ -547,7 +540,11 @@ function renderFixPanel(){
   const a=archivos.find(x=>x.id===activoId);
   if(!a?.parsed?.rowsClasif){ el.innerHTML='<div class="empty-state"><div class="icon">📋</div><div class="title">Carga un TXT primero</div></div>'; return; }
 
-  const pendientes=a.parsed.rowsClasif.filter(r=>r.alerta&&r.alerta!=='sin datos'&&!r.corregido);
+  const pendientes=a.parsed.rowsClasif.filter(r=>
+    r.alerta && r.alerta!=='sin datos' &&
+    r.alerta!=='propina/ICE: no declara en IVA' &&
+    !r.corregido
+  );
   const resueltas=a.parsed.rowsClasif.filter(r=>r.corregido);
   document.getElementById('fixContador').textContent=`${pendientes.length} pendientes · ${resueltas.length} corregidas`;
 
@@ -658,23 +655,23 @@ function renderVista(a){
   const vc=document.getElementById('vistaContent'),vb=document.getElementById('vistaBadges');
   if(a.error){vc.innerHTML=`<div class="alert alert-error">✗ ${a.error}</div>`;vb.innerHTML='';return;}
   if(!a.parsed){vc.innerHTML='<div class="empty-state"><div>Sin datos</div></div>';return;}
-  const pendientes=a.parsed.rowsClasif?.filter(r=>r.alerta&&r.alerta!=='sin datos'&&!r.corregido)||[];
+  const pendientes=a.parsed.rowsClasif?.filter(r=>r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'&&!r.corregido)||[];
   vb.innerHTML=`<span class="badge badge-blue">TXT</span><span class="badge badge-gray">${a.parsed.nFilas} registros</span>${pendientes.length>0?`<span class="badge badge-yellow">⚠ ${pendientes.length} por corregir</span>`:'<span class="badge badge-green">✅ Todo correcto</span>'}`;
   vc.innerHTML=renderTXTVista(a.parsed);
 }
 
 function renderTXTVista(p){
   const{rowsClasif,totales,nFilas}=p;
-  const pendientes=rowsClasif.filter(r=>r.alerta&&r.alerta!=='sin datos'&&!r.corregido);
+  const pendientes=rowsClasif.filter(r=>r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'&&!r.corregido);
   const corregidas=rowsClasif.filter(r=>r.corregido);
   let html='';
 
   html+=`<div class="resumen-grid">
     <div class="resumen-box"><div class="resumen-label">Registros</div><div class="resumen-value" style="color:#1d4ed8">${nFilas}</div></div>
-    <div class="resumen-box"><div class="resumen-label">Total IVA (cas. 501)</div><div class="resumen-value" style="color:#dc2626">$${(totales.totalIVA||0).toFixed(2)}</div></div>
-    <div class="resumen-box"><div class="resumen-label">Base Gravada est. (cas. 500)</div><div class="resumen-value" style="color:#15803d">$${(totales.totalBaseGrav||0).toFixed(2)}</div></div>
-    <div class="resumen-box"><div class="resumen-label">Base 0% est. (cas. 507)</div><div class="resumen-value" style="color:#6b7280">$${(totales.totalBase0||0).toFixed(2)}</div></div>
-    <div class="resumen-box"><div class="resumen-label">ICE/otros (no declara)</div><div class="resumen-value" style="color:#c2410c">$${(totales.totalIce||0).toFixed(2)}</div></div>
+    <div class="resumen-box"><div class="resumen-label">IVA pagado (cas. 501)</div><div class="resumen-value" style="color:#dc2626">$${(totales.totalIVA||0).toFixed(2)}</div></div>
+    <div class="resumen-box"><div class="resumen-label">Base Gravada (cas. 500)</div><div class="resumen-value" style="color:#15803d">$${(totales.totalBaseGrav||0).toFixed(2)}</div></div>
+    <div class="resumen-box"><div class="resumen-label">Base 0% (cas. 507)</div><div class="resumen-value" style="color:#6b7280">$${(totales.totalBase0||0).toFixed(2)}</div></div>
+    <div class="resumen-box"><div class="resumen-label">Propina/ICE (no declara)</div><div class="resumen-value" style="color:#c2410c">$${(totales.totalPropina||0).toFixed(2)}</div></div>
     <div class="resumen-box"><div class="resumen-label">Importe Total</div><div class="resumen-value" style="color:#1d4ed8">$${(totales.totalImporte||0).toFixed(2)}</div></div>
   </div>`;
 
@@ -694,17 +691,17 @@ function renderTXTVista(p){
       <span class="badge badge-green">Portal SRI</span>
     </div>
     <div class="tbl-wrap">
-      <table><thead><tr><th>Emisor</th><th>Serie</th><th>Fecha</th><th style="text-align:right">Base Grav.</th><th style="text-align:right">Base 0%</th><th style="text-align:right">IVA</th><th style="text-align:right">ICE/otros</th><th style="text-align:right">Total</th><th></th></tr></thead>
-      <tbody>${rowsClasif.slice(0,150).map(r=>`<tr style="${r.corregido?'background:#f0fdf4':r.alerta&&!r.corregido?'background:#fffbeb':''}">
+      <table><thead><tr><th>Emisor</th><th>Serie</th><th>Fecha</th><th style="text-align:right">Base Grav.</th><th style="text-align:right">Base 0%</th><th style="text-align:right">IVA</th><th style="text-align:right">Propina/ICE</th><th style="text-align:right">Total</th><th></th></tr></thead>
+      <tbody>${rowsClasif.slice(0,150).map(r=>`<tr style="${r.corregido?'background:#f0fdf4':r.alerta&&!r.corregido&&r.alerta!=='propina/ICE: no declara en IVA'?'background:#fffbeb':''}">
         <td style="max-width:110px;overflow:hidden;text-overflow:ellipsis;font-size:10px">${r.RAZON_SOCIAL_EMISOR||''}</td>
         <td style="font-family:monospace;font-size:9px">${r.SERIE_COMPROBANTE||''}</td>
         <td style="font-size:10px">${r.FECHA_EMISION||''}</td>
         <td class="td-num td-green">${r.baseGravada>0?'$'+r.baseGravada.toFixed(2):''}</td>
         <td class="td-num">${r.base0>0?'$'+r.base0.toFixed(2):''}</td>
         <td class="td-num td-red">${r.iva>0?'$'+r.iva.toFixed(2):''}</td>
-        <td class="td-num td-orange">${r.ice>0?'$'+r.ice.toFixed(2):''}</td>
+        <td class="td-num td-orange">${r.propina>0?'$'+r.propina.toFixed(2):''}</td>
         <td class="td-num" style="font-weight:700">$${r.total.toFixed(2)}</td>
-        <td>${r.corregido?'<span style="font-size:10px;color:#15803d">✅ XML</span>':r.alerta&&r.alerta!=='sin datos'?'<span style="font-size:10px;color:#c2410c;cursor:pointer" onclick="goTab(\'fix\')">⚠️</span>':''}</td>
+        <td>${r.corregido?'<span style="font-size:10px;color:#15803d">✅</span>':r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'?'<span style="font-size:10px;color:#c2410c;cursor:pointer" onclick="goTab(\'fix\')">⚠️</span>':''}</td>
       </tr>`).join('')}</tbody></table>
     </div>
     ${nFilas>150?`<div style="padding:5px 10px;font-size:10px;color:#9ca3af">Mostrando 150/${nFilas}. Se exportan todos.</div>`:''}
@@ -720,7 +717,7 @@ function render104A(){
   const a=archivos.find(x=>x.id===activoId);
   if(!a?.parsed?.totales){ el.innerHTML='<div class="empty-state"><div class="icon">🧾</div><div class="title">Carga un TXT primero</div></div>'; return; }
   const t=a.parsed.totales;
-  const pendientes=a.parsed.rowsClasif?.filter(r=>r.alerta&&r.alerta!=='sin datos'&&!r.corregido)||[];
+  const pendientes=a.parsed.rowsClasif?.filter(r=>r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'&&!r.corregido)||[];
 
   el.innerHTML=`
     <div class="alert alert-info"><strong>Formulario 104A — Persona Natural</strong><br><span style="font-size:10px">Archivo: ${a.nombre}</span></div>
@@ -823,7 +820,7 @@ async function exportTXT(p,hoja){
         const useFml=document.getElementById('chkFormula')?.checked!==false;
         const useProp=document.getElementById('chkPropina')?.checked!==false;
         const nRows=p.rowsClasif.length;
-        const hdrs=['RUC_EMISOR','RAZON_SOCIAL_EMISOR','TIPO_COMPROBANTE','SERIE_COMPROBANTE','CLAVE_ACCESO','FECHA_AUTORIZACION','FECHA_EMISION','IDENTIFICACION_RECEPTOR','VALOR_SIN_IMPUESTOS','base exenta','base no obje','BASE 0%','BASE GRAVADA','IVA','IMPORTE_TOTAL','NUMERO_DOCUMENTO_MODIFICADO','ICE_OTROS'];
+        const hdrs=['RUC_EMISOR','RAZON_SOCIAL_EMISOR','TIPO_COMPROBANTE','SERIE_COMPROBANTE','CLAVE_ACCESO','FECHA_AUTORIZACION','FECHA_EMISION','IDENTIFICACION_RECEPTOR','VALOR_SIN_IMPUESTOS','base exenta','base no obje','BASE 0%','BASE GRAVADA','IVA','IMPORTE_TOTAL','NUMERO_DOCUMENTO_MODIFICADO','PROPINA_ICE'];
         const nCols=hdrs.length;
         ws.getRange(`A1:${colL(nCols)}1`).values=[hdrs];
         ws.getRange(`A1:${colL(nCols)}1`).format.fill.color='#1e3a5f';
@@ -849,7 +846,7 @@ async function exportTXT(p,hoja){
           r.iva,                      // N IVA
           r.total,                    // O IMPORTE_TOTAL
           String(r.NUMERO_DOCUMENTO_MODIFICADO||''), // P
-          r.ice||'',                  // Q ICE/otros (no declara en IVA)
+          r.propina||'',              // Q PROPINA/ICE (no declara en IVA)
         ]);
         ws.getRange(`A2:${colL(nCols)}${nRows+1}`).values=bloque;
         await ctx.sync();
@@ -1012,7 +1009,7 @@ ${htmlContenido}
 function generarHTMLResumen(p) {
   const t = p.totales || {};
   const rows = p.rowsClasif || [];
-  const pendientes = rows.filter(r=>r.alerta&&r.alerta!=='sin datos'&&!r.corregido);
+  const pendientes = rows.filter(r=>r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'&&!r.corregido);
   const corregidas = rows.filter(r=>r.corregido);
 
   return `
