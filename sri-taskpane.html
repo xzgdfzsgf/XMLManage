@@ -405,18 +405,18 @@ function clasificarFila(r){
     const tasa = valSin > 0 ? (iva/valSin)*100 : 0;
     const diff  = parseFloat((total - valSin - iva).toFixed(2));
 
-    if(tasa >= 1){
+    if(tasa >= 5){
       // SIMPLE: valSin es solo base gravada (tarifa 15%, 8%, 5%)
       baseGravada = valSin;
       if(diff > 0.10){
         // Propina o ICE — va en columna Q informativa, NO declara en IVA
-        propina = diff; // lo llamamos propina genérico (incluye ICE)
-        // Solo DIRECTV tiene ICE real, HORPAXI/DONOSO tienen propina
+        propina = diff;
         if(alerta === '') alerta = 'propina/ICE: no declara en IVA';
       }
     } else {
-      // MIXTA: valSin mezcla base 15% + base 0%
-      // Solo DIFARE en la práctica (tasa < 1%)
+      // MIXTA: tasa < 5% → valSin mezcla base 15% + base 0%
+      // Ejemplos: TIPTI (supermercado), DIFARE (farmacia mixta)
+      // Estimamos base15 = IVA/0.15, base0 = valSin - base15
       baseGravada = parseFloat((iva/0.15).toFixed(2));
       base0       = parseFloat((valSin - baseGravada).toFixed(2));
       if(base0 < 0) base0 = 0;
