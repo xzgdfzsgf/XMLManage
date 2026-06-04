@@ -291,32 +291,36 @@ function procesarArchivo(nombre, content, size) {
 // ══════════════════════════════════════════════════════════
 function aplicarXMLaFilas(rowsClasif, xmlParsed, serie) {
   let corregidas = 0;
+  // Normalizar serie para comparación (quitar ceros a la izquierda por segmento)
+  const normSerie = (s) => (s||'').split('-').map(p=>p.replace(/^0+(\d)/,'$1')).join('-');
+  const serieNorm = normSerie(serie);
+
   rowsClasif.forEach(r => {
-    if(r.SERIE_COMPROBANTE === serie || r.CLAVE_ACCESO === xmlParsed.it?.claveAcceso){
-      // Tomar valores exactos del XML
-      const imp = xmlParsed.imp || [];
-      let baseG=0, base0=0, baseExenta=0, baseNoObje=0, iva=0, propina=0;
-      // El XML tiene infoFactura con subtotales
+    const rSerie = normSerie(r.SERIE_COMPROBANTE||'');
+    const matchSerie = rSerie === serieNorm || r.SERIE_COMPROBANTE === serie;
+    const matchClave = r.CLAVE_ACCESO && xmlParsed.it?.claveAcceso &&
+                       r.CLAVE_ACCESO === xmlParsed.it.claveAcceso;
+
+    if(matchSerie || matchClave){
       if(xmlParsed.subtotales){
-        baseG      = xmlParsed.subtotales.sub15    || 0;
-        base0      = xmlParsed.subtotales.sub0     || 0;
-        baseExenta = xmlParsed.subtotales.subExento|| 0;
-        baseNoObje = xmlParsed.subtotales.subNoObj || 0;
-        propina    = xmlParsed.subtotales.propina  || 0;
-        iva        = xmlParsed.subtotales.iva15    || 0;
-      } else {
-        // Fallback: calcular desde impuestos
-        imp.forEach(i=>{ if(i.cod==='2'){ baseG+=parseFloat(i.base||0); iva+=parseFloat(i.val||0); } });
+        const s = xmlParsed.subtotales;
+        r.baseGravada  = parseFloat((s.sub15||0).toFixed(2));
+        r.base0        = parseFloat((s.sub0||0).toFixed(2));
+        r.baseExenta   = parseFloat((s.subExento||0).toFixed(2));
+        r.baseNoObje   = parseFloat((s.subNoObj||0).toFixed(2));
+        r.propina      = parseFloat((s.propina||0).toFixed(2));
+        r.ice          = parseFloat((s.ice||0).toFixed(2));
+        r.iva          = parseFloat((s.iva15||0).toFixed(2)) || r.iva;
+      } else if(xmlParsed.imp?.length) {
+        let baseG=0, ivaR=0;
+        xmlParsed.imp.forEach(i=>{ if(i.cod==='2'){ baseG+=parseFloat(i.base||0); ivaR+=parseFloat(i.val||0); } });
+        r.baseGravada = parseFloat(baseG.toFixed(2));
+        r.iva         = parseFloat(ivaR.toFixed(2)) || r.iva;
+        r.ice         = 0;
       }
-      r.baseGravada  = parseFloat(baseG.toFixed(2));
-      r.base0        = parseFloat(base0.toFixed(2));
-      r.baseExenta   = parseFloat(baseExenta.toFixed(2));
-      r.baseNoObje   = parseFloat(baseNoObje.toFixed(2));
-      r.propina      = parseFloat(propina.toFixed(2));
-      r.iva          = parseFloat(iva.toFixed(2)) || r.iva;
-      r.alerta       = '';
-      r.corregido    = true;
-      r.fuenteXML    = serie;
+      r.alerta    = '';
+      r.corregido = true;
+      r.fuenteXML = serie;
       corregidas++;
     }
   });
@@ -359,33 +363,93 @@ function parsearTXT(content){
 }
 
 // ══════════════════════════════════════════════════════════
-// CLASIFICACIÓN DE BASES
+// CLASIFICACIÓN DE BASES — LÓGICA CORRECTA
 // ══════════════════════════════════════════════════════════
-const EMISORES_PROPINA=['RESTAURANTE','TIPTI','RAPPI','GLOVO','HORPAXI','SUSHI','ALEMAR','DELIVERY','COMIDA','CAFETERIA','CAFE','PIZZA','BURGER','GRILL','MCDONALDS','KFC','SUBWAY'];
-
-function tienePropinaEmisor(rs){ return EMISORES_PROPINA.some(k=>(rs||'').toUpperCase().includes(k)); }
+// El TXT del SRI trae:
+//   VALOR_SIN_IMPUESTOS = base gravada real (SUBTOTAL SIN IMPUESTOS del XML)
+//   IVA                 = impuesto calculado sobre esa base
+//   IMPORTE_TOTAL       = VALOR_SIN_IMPUESTOS + IVA + ICE + PROPINA + otros
+//
+// Por tanto:
+//   Si IVA = 0  → todo el TOTAL es BASE 0% (casillero 507)
+//   Si IVA > 0  → BASE GRAVADA = VALOR_SIN_IMPUESTOS (directo del TXT)
+//                 DIFF = TOTAL - VALOR_SIN_IMPUESTOS - IVA
+//                 Si DIFF > 0.10 → puede ser ICE, propina, o mezcla
+//                 ICE no va en ningún casillero de IVA
+//                 Propina tampoco va en IVA
+//                 → marcar como "verificar con XML" solo cuando DIFF > 0.10
+//
+// NOTA: NO usar IVA/0.15 porque la tarifa puede ser 8%, 5%, etc.
+// VALOR_SIN_IMPUESTOS del TXT = SUBTOTAL SIN IMPUESTOS del PDF = base gravada real
 
 function clasificarFila(r){
-  const iva=parseFloat(r.IVA||0)||0, total=parseFloat(r.IMPORTE_TOTAL||0)||0, valSin=parseFloat(r.VALOR_SIN_IMPUESTOS||0)||0, rs=r.RAZON_SOCIAL_EMISOR||'';
-  let baseGravada=0,base0=0,propina=0,baseExenta=0,baseNoObje=0,alerta='';
-  if(total===0) return {...r,baseGravada,base0,propina,baseExenta,baseNoObje,iva,total,valSin,alerta:'sin datos'};
+  const iva    = parseFloat(r.IVA||0)||0;
+  const total  = parseFloat(r.IMPORTE_TOTAL||0)||0;
+  const valSin = parseFloat(r.VALOR_SIN_IMPUESTOS||0)||0;
+  const rs     = r.RAZON_SOCIAL_EMISOR||'';
+  let baseGravada=0, base0=0, propina=0, baseExenta=0, baseNoObje=0, alerta='', ice=0;
+
+  if(total===0) return{...r,baseGravada,base0,propina,baseExenta,baseNoObje,ice,iva,total,valSin,alerta:'sin datos'};
+
   if(iva===0){
-    base0=total;
+    // Sin IVA → todo es base tarifa 0% (casillero 507)
+    base0 = total;
   } else {
-    baseGravada=parseFloat((iva/0.15).toFixed(10));
-    const resto=parseFloat((total-iva-baseGravada).toFixed(2));
-    if(resto>0.05){
-      if(tienePropinaEmisor(rs)) propina=resto;
-      else { base0=resto; alerta='mixta: verificar base 0%'; }
-    } else if(resto<-0.05){ alerta='revisar: no cuadra'; }
+    // Con IVA → base gravada = VALOR_SIN_IMPUESTOS directamente
+    baseGravada = valSin;
+    // Calcular diferencia
+    const diff = parseFloat((total - valSin - iva).toFixed(2));
+    if(diff > 0.10){
+      // La diferencia puede ser ICE, propina real, o facturas mixtas
+      // ICE: emisores como DIRECTV, bebidas, cigarrillos, autos, perfumes
+      // Propina: restaurantes que la incluyen como campo separado en XML
+      // Para el IVA ninguno de los dos va en ningún casillero
+      // Marcar para que el usuario lo revise con XML
+      ice = diff; // lo llamamos ice/otros — no declara en IVA
+      alerta = 'diff: ICE/propina/revisar XML';
+    } else if(diff < -0.10){
+      alerta = 'revisar: no cuadra';
+    }
   }
-  return {...r,baseGravada:parseFloat(baseGravada.toFixed(2)),base0:parseFloat(base0.toFixed(2)),propina:parseFloat(propina.toFixed(2)),baseExenta,baseNoObje,iva,total,valSin,alerta,corregido:false};
+
+  return{
+    ...r,
+    baseGravada: parseFloat(baseGravada.toFixed(2)),
+    base0:       parseFloat(base0.toFixed(2)),
+    propina:     parseFloat(propina.toFixed(2)),
+    ice:         parseFloat((ice||0).toFixed(2)),
+    baseExenta, baseNoObje, iva, total, valSin, alerta, corregido:false
+  };
 }
 
 function calcularTotales(rows){
-  let tIVA=0,tBaseG=0,tBase0=0,tProp=0,tTotal=0,tExenta=0,tNoObje=0;
-  rows.forEach(r=>{ tIVA+=r.iva||0; tBaseG+=r.baseGravada||0; tBase0+=r.base0||0; tProp+=r.propina||0; tTotal+=r.total||0; tExenta+=r.baseExenta||0; tNoObje+=r.baseNoObje||0; });
-  return { totalIVA:+tIVA.toFixed(2), totalBaseGrav:+tBaseG.toFixed(2), totalBase0:+tBase0.toFixed(2), totalPropina:+tProp.toFixed(2), totalImporte:+tTotal.toFixed(2), totalExenta:+tExenta.toFixed(2), totalNoObje:+tNoObje.toFixed(2), c500:+tBaseG.toFixed(2), c501:+tIVA.toFixed(2), c507:+tBase0.toFixed(2), c509:+tNoObje.toFixed(2), c510:+tExenta.toFixed(2), c601:+tIVA.toFixed(2) };
+  let tIVA=0,tBaseG=0,tBase0=0,tProp=0,tTotal=0,tExenta=0,tNoObje=0,tIce=0;
+  rows.forEach(r=>{
+    tIVA   += r.iva||0;
+    tBaseG += r.baseGravada||0;
+    tBase0 += r.base0||0;
+    tProp  += r.propina||0;
+    tTotal += r.total||0;
+    tExenta+= r.baseExenta||0;
+    tNoObje+= r.baseNoObje||0;
+    tIce   += r.ice||0;
+  });
+  return {
+    totalIVA:      +tIVA.toFixed(2),
+    totalBaseGrav: +tBaseG.toFixed(2),
+    totalBase0:    +tBase0.toFixed(2),
+    totalPropina:  +tProp.toFixed(2),
+    totalImporte:  +tTotal.toFixed(2),
+    totalExenta:   +tExenta.toFixed(2),
+    totalNoObje:   +tNoObje.toFixed(2),
+    totalIce:      +tIce.toFixed(2),
+    c500: +tBaseG.toFixed(2),
+    c501: +tIVA.toFixed(2),
+    c507: +tBase0.toFixed(2),
+    c509: +tNoObje.toFixed(2),
+    c510: +tExenta.toFixed(2),
+    c601: +tIVA.toFixed(2),
+  };
 }
 
 // ══════════════════════════════════════════════════════════
@@ -416,11 +480,12 @@ function parsearXML(xmlStr){
       const iva15    = 0; // se calcula de impuestos
       const totalVal = parseFloat(gx(info,'importeTotal')||0)||0;
 
-      // Recorrer totalConImpuestos para sacar IVA y bases por tarifa
-      let ivaReal=0, baseGrav=0;
+      // Recorrer totalConImpuestos para sacar IVA, bases y ICE por separado
+      let ivaReal=0, baseGrav=0, iceReal=0;
       info.querySelectorAll('totalConImpuestos totalImpuesto').forEach(i=>{
         const c=gx(i,'codigo'), base=parseFloat(gx(i,'baseImponible')||0)||0, val=parseFloat(gx(i,'valor')||0)||0;
-        if(c==='2'){ ivaReal+=val; baseGrav+=base; } // IVA
+        if(c==='2'){ ivaReal+=val; baseGrav+=base; }      // IVA
+        else if(c==='3'){ iceReal+=val; }                  // ICE
         imp.push({cod:c,pct:gx(i,'codigoPorcentaje'),base:base.toFixed(2),val:val.toFixed(2)});
       });
 
@@ -440,6 +505,7 @@ function parsearXML(xmlStr){
         subExento,
         subNoObj,
         propina,
+        ice:      parseFloat(iceReal.toFixed(2)),
         iva15:    parseFloat(ivaReal.toFixed(2)),
         total:    parseFloat(totalVal.toFixed(2)),
       };
@@ -587,9 +653,9 @@ function renderTXTVista(p){
   html+=`<div class="resumen-grid">
     <div class="resumen-box"><div class="resumen-label">Registros</div><div class="resumen-value" style="color:#1d4ed8">${nFilas}</div></div>
     <div class="resumen-box"><div class="resumen-label">Total IVA</div><div class="resumen-value" style="color:#dc2626">$${(totales.totalIVA||0).toFixed(2)}</div></div>
-    <div class="resumen-box"><div class="resumen-label">Base Gravada 15%</div><div class="resumen-value" style="color:#15803d">$${(totales.totalBaseGrav||0).toFixed(2)}</div></div>
-    <div class="resumen-box"><div class="resumen-label">Base Tarifa 0%</div><div class="resumen-value" style="color:#6b7280">$${(totales.totalBase0||0).toFixed(2)}</div></div>
-    <div class="resumen-box"><div class="resumen-label">Propina (no declara)</div><div class="resumen-value" style="color:#c2410c">$${(totales.totalPropina||0).toFixed(2)}</div></div>
+    <div class="resumen-box"><div class="resumen-label">Base Gravada (cas. 500)</div><div class="resumen-value" style="color:#15803d">$${(totales.totalBaseGrav||0).toFixed(2)}</div></div>
+    <div class="resumen-box"><div class="resumen-label">Base Tarifa 0% (cas. 507)</div><div class="resumen-value" style="color:#6b7280">$${(totales.totalBase0||0).toFixed(2)}</div></div>
+    <div class="resumen-box"><div class="resumen-label">ICE / otros (no IVA)</div><div class="resumen-value" style="color:#c2410c">$${(totales.totalIce||0).toFixed(2)}</div></div>
     <div class="resumen-box"><div class="resumen-label">Importe Total</div><div class="resumen-value" style="color:#1d4ed8">$${(totales.totalImporte||0).toFixed(2)}</div></div>
   </div>`;
 
@@ -609,15 +675,15 @@ function renderTXTVista(p){
       <span class="badge badge-green">Portal SRI</span>
     </div>
     <div class="tbl-wrap">
-      <table><thead><tr><th>Emisor</th><th>Serie</th><th>Fecha</th><th>Base Grav.</th><th>Prop.</th><th>Base 0%</th><th>IVA</th><th>Total</th><th></th></tr></thead>
+      <table><thead><tr><th>Emisor</th><th>Serie</th><th>Fecha</th><th style="text-align:right">Base Grav.</th><th style="text-align:right">Base 0%</th><th style="text-align:right">IVA</th><th style="text-align:right">ICE/otros</th><th style="text-align:right">Total</th><th></th></tr></thead>
       <tbody>${rowsClasif.slice(0,150).map(r=>`<tr style="${r.corregido?'background:#f0fdf4':r.alerta&&!r.corregido?'background:#fffbeb':''}">
         <td style="max-width:110px;overflow:hidden;text-overflow:ellipsis;font-size:10px">${r.RAZON_SOCIAL_EMISOR||''}</td>
         <td style="font-family:monospace;font-size:9px">${r.SERIE_COMPROBANTE||''}</td>
         <td style="font-size:10px">${r.FECHA_EMISION||''}</td>
         <td class="td-num td-green">${r.baseGravada>0?'$'+r.baseGravada.toFixed(2):''}</td>
-        <td class="td-num td-orange">${r.propina>0?'$'+r.propina.toFixed(2):''}</td>
         <td class="td-num">${r.base0>0?'$'+r.base0.toFixed(2):''}</td>
         <td class="td-num td-red">${r.iva>0?'$'+r.iva.toFixed(2):''}</td>
+        <td class="td-num td-orange">${r.ice>0?'$'+r.ice.toFixed(2):''}</td>
         <td class="td-num" style="font-weight:700">$${r.total.toFixed(2)}</td>
         <td>${r.corregido?'<span style="font-size:10px;color:#15803d">✅ XML</span>':r.alerta&&r.alerta!=='sin datos'?'<span style="font-size:10px;color:#c2410c;cursor:pointer" onclick="goTab(\'fix\')">⚠️</span>':''}</td>
       </tr>`).join('')}</tbody></table>
@@ -738,7 +804,7 @@ async function exportTXT(p,hoja){
         const useFml=document.getElementById('chkFormula')?.checked!==false;
         const useProp=document.getElementById('chkPropina')?.checked!==false;
         const nRows=p.rowsClasif.length;
-        const hdrs=['RUC_EMISOR','RAZON_SOCIAL_EMISOR','TIPO_COMPROBANTE','SERIE_COMPROBANTE','CLAVE_ACCESO','FECHA_AUTORIZACION','FECHA_EMISION','IDENTIFICACION_RECEPTOR','VALOR_SIN_IMPUESTOS','base exenta','base no obje','BASE 0%','BASE GRAVADA','IVA','IMPORTE_TOTAL','NUMERO_DOCUMENTO_MODIFICADO',...(useProp?['PROPINA']:['NOTA'])];
+        const hdrs=['RUC_EMISOR','RAZON_SOCIAL_EMISOR','TIPO_COMPROBANTE','SERIE_COMPROBANTE','CLAVE_ACCESO','FECHA_AUTORIZACION','FECHA_EMISION','IDENTIFICACION_RECEPTOR','VALOR_SIN_IMPUESTOS','base exenta','base no obje','BASE 0%','BASE GRAVADA','IVA','IMPORTE_TOTAL','NUMERO_DOCUMENTO_MODIFICADO','ICE_OTROS'];
         const nCols=hdrs.length;
         ws.getRange(`A1:${colL(nCols)}1`).values=[hdrs];
         ws.getRange(`A1:${colL(nCols)}1`).format.fill.color='#1e3a5f';
@@ -756,15 +822,15 @@ async function exportTXT(p,hoja){
           r.FECHA_AUTORIZACION||'',
           r.FECHA_EMISION||'',
           String(r.IDENTIFICACION_RECEPTOR||''),
-          r.iva>0?r.baseGravada:0,          // I
-          r.baseExenta||'',                  // J
-          r.baseNoObje||'',                  // K
-          r.base0||'',                       // L
-          r.iva>0?r.baseGravada:'',          // M
-          r.iva,                             // N
-          r.total,                           // O
+          r.iva>0?r.baseGravada:0,   // I VALOR_SIN_IMPUESTOS = base gravada
+          r.baseExenta||'',           // J base exenta (manual)
+          r.baseNoObje||'',           // K base no obje (manual)
+          r.base0||'',                // L BASE 0%
+          r.iva>0?r.baseGravada:'',   // M BASE GRAVADA
+          r.iva,                      // N IVA
+          r.total,                    // O IMPORTE_TOTAL
           String(r.NUMERO_DOCUMENTO_MODIFICADO||''), // P
-          useProp?(r.propina||''):(r.alerta||''),    // Q
+          r.ice||'',                  // Q ICE/otros (no declara en IVA)
         ]);
         ws.getRange(`A2:${colL(nCols)}${nRows+1}`).values=bloque;
         await ctx.sync();
