@@ -109,25 +109,36 @@ input[type=checkbox]{width:14px;height:14px;accent-color:#1d4ed8}
 <!-- ══ CARGAR ══ -->
 <div class="panel visible" id="panel-cargar">
   <div class="content">
+    <!-- Área de carga principal -->
     <div class="dropzone" id="dz" onclick="document.getElementById('fi').click()"
       ondragover="event.preventDefault();this.classList.add('drag')"
       ondragleave="this.classList.remove('drag')"
       ondrop="onDrop(event)">
       <input type="file" id="fi" accept=".txt,.csv,.xml" multiple onchange="onFiles(this.files)">
       📂 Clic o arrastra aquí<br>
-      <strong>TXT del portal SRI</strong> · XML de comprobantes · 📁 Carpeta de XMLs
+      <strong>TXT del portal SRI</strong> · XML individuales · Carpeta de XMLs
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <button class="btn btn-outline btn-sm" style="flex:1;font-size:11px" onclick="document.getElementById('fiCarpeta').click()">
-        📁 Cargar carpeta de XMLs
+
+    <!-- Botones de carga rápida -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <button class="btn btn-primary btn-sm" onclick="document.getElementById('fi').click()" style="text-align:center">
+        📄 Cargar TXT
+      </button>
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('fiCarpeta').click()" style="text-align:center;border-color:#d97706;color:#d97706">
+        📁 Cargar carpeta XMLs
       </button>
       <input type="file" id="fiCarpeta" webkitdirectory multiple accept=".xml" style="display:none" onchange="onFiles(this.files)">
     </div>
+
     <div id="fileList">
       <div class="empty-state">
         <div class="icon">🇪🇨</div>
         <div class="title">Sin archivos cargados</div>
-        <div style="font-size:11px;color:#9ca3af">Descarga el TXT desde el portal SRI y cárgalo aquí</div>
+        <div style="font-size:11px;color:#9ca3af;line-height:1.6">
+          1. Descarga el <strong>TXT de Comprobantes Recibidos</strong> del portal SRI<br>
+          2. Cárgalo aquí con el botón azul<br>
+          3. Para corregir facturas mixtas, usa <strong>"Cargar carpeta XMLs"</strong>
+        </div>
       </div>
     </div>
   </div>
@@ -688,42 +699,62 @@ function renderFixPanel(){
 
   if(pendientes.length>0){
     html+=`<div class="alert alert-warn">
-      <strong>⚠️ ${pendientes.length} factura${pendientes.length>1?'s':''} que necesitan XML para clasificar bases exactas</strong><br>
-      Son facturas <strong>mixtas</strong> (parte a 15% + parte a 0%, como supermercados) o con <strong>ICE</strong> (DIRECTV).<br>
-      El TXT del SRI no puede separar las bases — solo el XML lo tiene exacto.<br>
-      Descarga el XML desde el portal SRI → Comprobantes recibidos → clic en la factura → Descargar XML.
+      <strong>⚠️ ${pendientes.length} factura${pendientes.length>1?'s':''} necesitan XML</strong><br>
+      Son facturas <strong>mixtas</strong> (supermercados: parte 15% + parte 0%) o con ICE.<br>
+      Descarga el XML de <em>cada una</em> desde el portal SRI:<br>
+      <span style="font-size:10px">SRI en línea → Comprobantes electrónicos → Recibidos → busca por serie → Descargar XML</span>
     </div>
 
-    <div class="dropzone dz-xml" style="margin-bottom:8px"
+    <div class="dropzone dz-xml" style="margin-bottom:6px"
       onclick="document.getElementById('fiXml').click()"
       ondragover="event.preventDefault();this.classList.add('drag')"
       ondragleave="this.classList.remove('drag')"
       ondrop="onDropXml(event)">
       <input type="file" id="fiXml" accept=".xml" multiple onchange="onFilesXml(this.files)">
-      📄 Arrastra XMLs o una carpeta completa aquí<br>
-      <span style="font-size:10px">Varios a la vez · Se emparejan automáticamente por número de serie o clave de acceso</span>
+      📄 Arrastra aquí los XML descargados<br>
+      <span style="font-size:10px">El sistema los empareja por número de serie automáticamente</span>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:12px">
-      <button class="btn btn-warn btn-sm" style="flex:1" onclick="document.getElementById('fiXmlCarpeta').click()">
-        📁 Cargar carpeta de XMLs
+    <div style="margin-bottom:12px">
+      <button class="btn btn-warn btn-sm" style="width:100%;text-align:center" onclick="document.getElementById('fiXmlCarpeta').click()">
+        📁 O carga una carpeta con todos los XMLs del mes
       </button>
       <input type="file" id="fiXmlCarpeta" webkitdirectory multiple accept=".xml" style="display:none" onchange="onFilesXml(this.files)">
     </div>
 
-    <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px">Facturas pendientes (${pendientes.length}):</div>`;
+    <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px">
+      XMLs que necesitas descargar (${pendientes.length}):
+    </div>`;
 
     pendientes.forEach(r=>{
-      const baseGEst=r.baseGravada.toFixed(2), b0Est=r.base0.toFixed(2);
-      const esICE = r.alerta?.includes('ICE');
-      html+=`<div class="fix-item" id="fix-${r.SERIE_COMPROBANTE}">
+      const baseGEst = r.baseGravada.toFixed(2);
+      const b0Est    = r.base0.toFixed(2);
+      const ruc      = r.RUC_EMISOR || '—';
+      const serie    = r.SERIE_COMPROBANTE || '—';
+      html+=`<div class="fix-item" id="fix-${serie}">
         <div class="fix-title">📄 ${r.RAZON_SOCIAL_EMISOR||'Sin nombre'}</div>
-        <div class="fix-sub">Serie: <strong>${r.SERIE_COMPROBANTE||'—'}</strong> · Fecha: ${r.FECHA_EMISION||'—'}</div>
-        <div class="fix-valores">
-          <div class="fix-val"><div class="fix-val-label">BASE GRAV. est.</div><div class="fix-val-num" style="color:#15803d">$${baseGEst}</div></div>
-          <div class="fix-val"><div class="fix-val-label">BASE 0% est.</div><div class="fix-val-num" style="color:#6b7280">$${b0Est}</div></div>
-          <div class="fix-val"><div class="fix-val-label">${esICE?'ICE est.':'IVA'}</div><div class="fix-val-num" style="color:#dc2626">$${esICE?(r.ice||0).toFixed(2):r.iva.toFixed(2)}</div></div>
+        <div style="font-size:10px;color:#6b7280;margin-bottom:4px">
+          RUC emisor: <strong style="font-family:monospace;color:#374151">${ruc}</strong>
         </div>
-        <div style="font-size:10px;color:#92400e">⚠️ ${r.alerta}</div>
+        <div class="fix-sub">
+          Serie: <strong style="font-family:monospace;color:#1d4ed8">${serie}</strong> · ${r.FECHA_EMISION||'—'}
+        </div>
+        <div class="fix-valores" style="margin-top:6px">
+          <div class="fix-val">
+            <div class="fix-val-label">Base Grav. est.</div>
+            <div class="fix-val-num" style="color:#15803d">$${baseGEst}</div>
+          </div>
+          <div class="fix-val">
+            <div class="fix-val-label">Base 0% est.</div>
+            <div class="fix-val-num" style="color:#6b7280">$${b0Est}</div>
+          </div>
+          <div class="fix-val">
+            <div class="fix-val-label">IVA</div>
+            <div class="fix-val-num" style="color:#dc2626">$${r.iva.toFixed(2)}</div>
+          </div>
+        </div>
+        <div style="font-size:10px;color:#92400e;margin-top:4px">
+          ⚠️ ${r.alerta} · Descarga el XML con esta serie y arrástralo arriba
+        </div>
       </div>`;
     });
   }
@@ -948,59 +979,104 @@ async function exportTXT(p,hoja){
 
       if(p.esPortalSRI){
         const useFml=document.getElementById('chkFormula')?.checked!==false;
-        const useProp=document.getElementById('chkPropina')?.checked!==false;
         const nRows=p.rowsClasif.length;
-        const hdrs=['RUC_EMISOR','RAZON_SOCIAL_EMISOR','TIPO_COMPROBANTE','SERIE_COMPROBANTE','CLAVE_ACCESO','FECHA_AUTORIZACION','FECHA_EMISION','IDENTIFICACION_RECEPTOR','VALOR_SIN_IMPUESTOS','base exenta','base no obje','BASE 0%','BASE GRAVADA','IVA','IMPORTE_TOTAL','NUMERO_DOCUMENTO_MODIFICADO','PROPINA_ICE'];
+
+        // 19 columnas — PROPINA e ICE separados + CORREGIDO_XML
+        const hdrs=[
+          'RUC_EMISOR',           // A
+          'RAZON_SOCIAL_EMISOR',  // B
+          'TIPO_COMPROBANTE',     // C
+          'SERIE_COMPROBANTE',    // D
+          'CLAVE_ACCESO',         // E
+          'FECHA_AUTORIZACION',   // F
+          'FECHA_EMISION',        // G
+          'IDENTIFICACION_RECEPTOR', // H
+          'SUBTOTAL_SIN_IMPTOS',  // I — renombrado (del TXT, base+base0 juntos)
+          'BASE_EXENTA',          // J
+          'BASE_NO_OBJETO',       // K
+          'BASE_0%',              // L
+          'BASE_GRAVADA',         // M
+          'IVA',                  // N
+          'IMPORTE_TOTAL',        // O
+          'NUM_DOC_MODIFICADO',   // P
+          'PROPINA',              // Q — solo propina
+          'ICE',                  // R — solo ICE
+          'CORREGIDO_XML',        // S — ✓ si fue corregido con XML
+        ];
         const nCols=hdrs.length;
         ws.getRange(`A1:${colL(nCols)}1`).values=[hdrs];
         ws.getRange(`A1:${colL(nCols)}1`).format.fill.color='#1e3a5f';
         ws.getRange(`A1:${colL(nCols)}1`).format.font.color='#ffffff';
         ws.getRange(`A1:${colL(nCols)}1`).format.font.bold=true;
-        ['A','D','E','H','P'].forEach(c=>{ ws.getRange(`${c}2:${c}${nRows+1}`).numberFormat=[['@']]; });
+
+        // Columnas texto — forzar formato @
+        ['A','D','E','H','P'].forEach(c=>{
+          ws.getRange(`${c}2:${c}${nRows+1}`).numberFormat=[['@']];
+        });
         await ctx.sync();
 
         const bloque=p.rowsClasif.map((r,i)=>[
-          String(r.RUC_EMISOR||''),
-          r.RAZON_SOCIAL_EMISOR||'',
-          r.TIPO_COMPROBANTE||'',
-          String(r.SERIE_COMPROBANTE||''),
-          String(r.CLAVE_ACCESO||''),
-          r.FECHA_AUTORIZACION||'',
-          r.FECHA_EMISION||'',
-          String(r.IDENTIFICACION_RECEPTOR||''),
-          r.iva>0?r.baseGravada:0,   // I VALOR_SIN_IMPUESTOS = base gravada
-          r.baseExenta||'',           // J base exenta (manual)
-          r.baseNoObje||'',           // K base no obje (manual)
-          r.base0||'',                // L BASE 0%
-          r.iva>0?r.baseGravada:'',   // M BASE GRAVADA
-          r.iva,                      // N IVA
-          r.total,                    // O IMPORTE_TOTAL
+          String(r.RUC_EMISOR||''),              // A
+          r.RAZON_SOCIAL_EMISOR||'',             // B
+          r.TIPO_COMPROBANTE||'',                // C
+          String(r.SERIE_COMPROBANTE||''),       // D
+          String(r.CLAVE_ACCESO||''),            // E
+          r.FECHA_AUTORIZACION||'',              // F
+          r.FECHA_EMISION||'',                   // G
+          String(r.IDENTIFICACION_RECEPTOR||''), // H
+          r.valSin||0,                           // I SUBTOTAL_SIN_IMPTOS (del TXT directo)
+          r.baseExenta||'',                      // J BASE_EXENTA
+          r.baseNoObje||'',                      // K BASE_NO_OBJETO
+          r.base0||'',                           // L BASE_0%
+          r.iva>0?r.baseGravada:'',              // M BASE_GRAVADA
+          r.iva,                                 // N IVA
+          r.total,                               // O IMPORTE_TOTAL
           String(r.NUMERO_DOCUMENTO_MODIFICADO||''), // P
-          r.propina||'',              // Q PROPINA/ICE (no declara en IVA)
+          r.propina||'',                         // Q PROPINA
+          r.ice||'',                             // R ICE
+          r.corregido?'✓ XML':'',               // S CORREGIDO_XML
         ]);
         ws.getRange(`A2:${colL(nCols)}${nRows+1}`).values=bloque;
         await ctx.sync();
 
+        // Fórmula BASE_GRAVADA: =IVA/tarifa (usando 0.15 como default)
+        // Solo cuando NO fue corregida con XML (si fue corregida, el valor es exacto)
         if(useFml){
-          const fmlaM=p.rowsClasif.map((r,i)=>[r.iva>0?`=N${i+2}/0.15`:r.baseGravada||'']);
+          const fmlaM=p.rowsClasif.map((r,i)=>{
+            if(r.corregido) return [r.baseGravada||'']; // XML exacto
+            return [r.iva>0?`=N${i+2}/0.15`:r.baseGravada||''];
+          });
           ws.getRange(`M2:M${nRows+1}`).formulas=fmlaM;
           await ctx.sync();
         }
 
-        ['I','J','K','L','M','N','O'].forEach(c=>{ ws.getRange(`${c}2:${c}${nRows+1}`).numberFormat=[['#,##0.00']]; });
-        if(useProp) ws.getRange(`Q2:Q${nRows+1}`).numberFormat=[['#,##0.00']];
-
-        // Colorear filas corregidas en verde claro
-        p.rowsClasif.forEach((r,i)=>{
-          if(r.corregido) ws.getRange(`A${i+2}:${colL(nCols)}${i+2}`).format.fill.color='#f0fdf4';
+        // Formato numérico
+        ['I','J','K','L','M','N','O','Q','R'].forEach(c=>{
+          ws.getRange(`${c}2:${c}${nRows+1}`).numberFormat=[['#,##0.00']];
         });
 
+        // Colorear filas: verde=corregido con XML, amarillo=pendiente
+        p.rowsClasif.forEach((r,i)=>{
+          const fila=i+2;
+          if(r.corregido){
+            ws.getRange(`A${fila}:${colL(nCols)}${fila}`).format.fill.color='#f0fdf4';
+            ws.getRange(`S${fila}`).format.font.color='#15803d';
+            ws.getRange(`S${fila}`).format.font.bold=true;
+          } else if(r.alerta && r.alerta!=='sin datos' && r.alerta!=='propina/ICE: no declara en IVA'){
+            ws.getRange(`A${fila}:${colL(nCols)}${fila}`).format.fill.color='#fffbeb';
+          }
+        });
+
+        // Fila TOTALES
         const tf=nRows+3;
         ws.getRange(`A${tf}`).values=[['TOTALES']];
         ws.getRange(`A${tf}`).format.font.bold=true;
         ws.getRange(`A${tf}`).format.fill.color='#f0fdf4';
-        ['I','J','K','L','M','N','O'].forEach(c=>{ ws.getRange(`${c}${tf}`).formulas=[[`=SUM(${c}2:${c}${nRows+1})`]]; ws.getRange(`${c}${tf}`).format.font.bold=true; ws.getRange(`${c}${tf}`).format.fill.color='#f0fdf4'; });
-        if(useProp){ ws.getRange(`Q${tf}`).formulas=[[`=SUM(Q2:Q${nRows+1})`]]; ws.getRange(`Q${tf}`).format.font.bold=true; ws.getRange(`Q${tf}`).format.fill.color='#fff7ed'; }
+        ['I','J','K','L','M','N','O','Q','R'].forEach(c=>{
+          ws.getRange(`${c}${tf}`).formulas=[[`=SUM(${c}2:${c}${nRows+1})`]];
+          ws.getRange(`${c}${tf}`).format.font.bold=true;
+          ws.getRange(`${c}${tf}`).format.fill.color='#f0fdf4';
+        });
 
         ws.getUsedRange().format.autofitColumns();
         ws.freezePanes.freezeRows(1);
