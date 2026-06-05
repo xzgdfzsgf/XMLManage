@@ -115,7 +115,13 @@ input[type=checkbox]{width:14px;height:14px;accent-color:#1d4ed8}
       ondrop="onDrop(event)">
       <input type="file" id="fi" accept=".txt,.csv,.xml" multiple onchange="onFiles(this.files)">
       📂 Clic o arrastra aquí<br>
-      <strong>TXT del portal SRI</strong> · XML de comprobantes
+      <strong>TXT del portal SRI</strong> · XML de comprobantes · 📁 Carpeta de XMLs
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="btn btn-outline btn-sm" style="flex:1;font-size:11px" onclick="document.getElementById('fiCarpeta').click()">
+        📁 Cargar carpeta de XMLs
+      </button>
+      <input type="file" id="fiCarpeta" webkitdirectory multiple accept=".xml" style="display:none" onchange="onFiles(this.files)">
     </div>
     <div id="fileList">
       <div class="empty-state">
@@ -249,42 +255,118 @@ function actualizarBadgeFix() {
 }
 
 // ══════════════════════════════════════════════════════════
-// CARGAR ARCHIVOS (TXT y XML mezclados)
+// CARGAR ARCHIVOS — TXT, XML individuales y CARPETAS de XML
 // ══════════════════════════════════════════════════════════
-function onDrop(e){ e.preventDefault(); document.getElementById('dz').classList.remove('drag'); onFiles(e.dataTransfer.files); }
-function onFiles(files){ Array.from(files).forEach(f=>{ const r=new FileReader(); r.onload=e=>procesarArchivo(f.name,e.target.result,f.size); r.readAsText(f,'UTF-8'); }); }
-
-function procesarArchivo(nombre, content, size) {
-  const ext=nombre.split('.').pop().toLowerCase();
-  if(ext==='xml'){
-    // Puede ser XML de corrección → parsearlo y guardarlo en xmlPool
-    try {
-      const p = parsearXML(content);
-      // indexar por serie del comprobante
-      const serie = p.numeroComprobante;
-      xmlPool[serie] = p;
-      // Si hay TXT activo, intentar corregir
-      const a = archivos.find(x=>x.id===activoId);
-      if(a?.parsed?.rowsClasif){
-        const corregidas = aplicarXMLaFilas(a.parsed.rowsClasif, p, serie);
-        if(corregidas > 0){
-          a.parsed.totales = calcularTotales(a.parsed.rowsClasif);
-          renderVista(a);
-          actualizarBadgeFix();
-          renderFixPanel();
-          showToast(`✅ XML corregido: ${serie} (${corregidas} fila${corregidas>1?'s':''} actualizada${corregidas>1?'s':''})`,'success');
-          return;
+function onDrop(e){
+  e.preventDefault();
+  document.getElementById('dz').classList.remove('drag');
+  // dataTransfer puede tener files o items (para carpetas)
+  if(e.dataTransfer.items && e.dataTransfer.items.length > 0){
+    const items = Array.from(e.dataTransfer.items);
+    items.forEach(item => {
+      if(item.kind === 'file'){
+        const entry = item.webkitGetAsEntry?.();
+        if(entry && entry.isDirectory){
+          leerDirectorio(entry);
+        } else {
+          const f = item.getAsFile();
+          if(f) leerArchivo(f);
         }
       }
-      showToast(`XML cargado: ${serie}`,'info');
+    });
+  } else {
+    onFiles(e.dataTransfer.files);
+  }
+}
+
+function leerDirectorio(entry){
+  const reader = entry.createReader();
+  const leerTodos = (reader) => {
+    reader.readEntries(entries => {
+      if(!entries.length) return;
+      entries.forEach(e => {
+        if(e.isFile) e.file(f => leerArchivo(f));
+        else if(e.isDirectory) leerDirectorio(e);
+      });
+      leerTodos(reader); // continuar si hay más de 100 entradas
+    });
+  };
+  leerTodos(reader);
+}
+
+function leerArchivo(f){
+  const ext = f.name.split('.').pop().toLowerCase();
+  if(ext !== 'xml' && ext !== 'txt' && ext !== 'csv') return;
+  const r = new FileReader();
+  r.onload = e => procesarArchivo(f.name, e.target.result, f.size);
+  r.readAsText(f, 'UTF-8');
+}
+
+function onFiles(files){
+  Array.from(files).forEach(f => leerArchivo(f));
+}
+
+// Contador para mostrar progreso al cargar muchos XML
+let xmlCargados = 0, xmlCorregidos = 0, xmlTimer = null;
+
+function procesarArchivo(nombre, content, size) {
+  const ext = nombre.split('.').pop().toLowerCase();
+
+  if(ext === 'xml'){
+    try {
+      const p = parsearXML(content);
+      const serie = p.numeroComprobante;
+      xmlPool[serie] = p;
+      // También indexar por clave de acceso para mejor matching
+      if(p.it?.claveAcceso) xmlPool[p.it.claveAcceso] = p;
+
+      // Intentar corregir en TODOS los TXT cargados
+      let totalCorregidas = 0;
+      archivos.forEach(a => {
+        if(a.parsed?.rowsClasif){
+          const n = aplicarXMLaFilas(a.parsed.rowsClasif, p, serie);
+          if(n > 0){
+            a.parsed.totales = calcularTotales(a.parsed.rowsClasif);
+            totalCorregidas += n;
+          }
+        }
+      });
+
+      xmlCargados++;
+      if(totalCorregidas > 0) xmlCorregidos++;
+
+      // Debounce para no re-renderizar en cada XML de una carpeta
+      clearTimeout(xmlTimer);
+      xmlTimer = setTimeout(() => {
+        const a = archivos.find(x=>x.id===activoId);
+        if(a) { renderVista(a); actualizarBadgeFix(); renderFixPanel(); }
+        if(xmlCargados > 1){
+          showToast(`✅ ${xmlCargados} XML procesados · ${xmlCorregidos} facturas corregidas`, 'success');
+        } else if(totalCorregidas > 0){
+          showToast(`✅ Corregida: ${serie}`, 'success');
+        } else {
+          showToast(`XML cargado (sin match en TXT): ${serie}`, 'info');
+        }
+        xmlCargados = 0; xmlCorregidos = 0;
+      }, 400);
+
     } catch(e){
-      showToast('Error en XML: '+e.message,'error');
+      showToast(`Error en XML ${nombre}: ${e.message}`, 'error');
     }
     return;
   }
-  // TXT normal
+
+  // TXT / CSV
   let parsed=null, error=null;
   try { parsed=parsearTXT(content); } catch(e){ error=e.message; }
+  // Al cargar un nuevo TXT, aplicar XML del pool que ya estén cargados
+  if(parsed?.rowsClasif && Object.keys(xmlPool).length > 0){
+    let n = 0;
+    Object.values(xmlPool).forEach(p => {
+      n += aplicarXMLaFilas(parsed.rowsClasif, p, p.numeroComprobante);
+    });
+    if(n > 0) parsed.totales = calcularTotales(parsed.rowsClasif);
+  }
   const a={ id:Date.now()+Math.random(), nombre, content, parsed, error, tipo:'txt', size };
   archivos.push(a); activoId=a.id;
   renderFileList(); renderVista(a); actualizarBadgeFix(); goTab('vista');
@@ -295,17 +377,22 @@ function procesarArchivo(nombre, content, size) {
 // ══════════════════════════════════════════════════════════
 function aplicarXMLaFilas(rowsClasif, xmlParsed, serie) {
   let corregidas = 0;
-  // Normalizar serie para comparación (quitar ceros a la izquierda por segmento)
-  const normSerie = (s) => (s||'').split('-').map(p=>p.replace(/^0+(\d)/,'$1')).join('-');
-  const serieNorm = normSerie(serie);
+  const normS = (s) => (s||'').trim().split('-').map(p=>p.replace(/^0+(\d)/,'$1')).join('-');
+  const xmlSerie     = normS(serie);
+  const xmlClave     = (xmlParsed.it?.claveAcceso||'').trim();
+  const xmlClaveCorta= xmlClave.substring(0,20); // primeros 20 dígitos son únicos
 
   rowsClasif.forEach(r => {
-    const rSerie = normSerie(r.SERIE_COMPROBANTE||'');
-    const matchSerie = rSerie === serieNorm || r.SERIE_COMPROBANTE === serie;
-    const matchClave = r.CLAVE_ACCESO && xmlParsed.it?.claveAcceso &&
-                       r.CLAVE_ACCESO === xmlParsed.it.claveAcceso;
+    if(r.corregido) return; // ya corregida, no sobreescribir
 
-    if(matchSerie || matchClave){
+    const rSerie = normS(r.SERIE_COMPROBANTE||'');
+    const rClave = (r.CLAVE_ACCESO||'').trim();
+
+    const matchSerie = rSerie && xmlSerie && rSerie === xmlSerie;
+    const matchClave = xmlClave && rClave && rClave === xmlClave;
+    const matchClaveCorta = xmlClaveCorta && rClave && rClave.startsWith(xmlClaveCorta);
+
+    if(matchSerie || matchClave || matchClaveCorta){
       if(xmlParsed.subtotales){
         const s = xmlParsed.subtotales;
         r.baseGravada  = parseFloat((s.sub15||0).toFixed(2));
@@ -314,13 +401,13 @@ function aplicarXMLaFilas(rowsClasif, xmlParsed, serie) {
         r.baseNoObje   = parseFloat((s.subNoObj||0).toFixed(2));
         r.propina      = parseFloat((s.propina||0).toFixed(2));
         r.ice          = parseFloat((s.ice||0).toFixed(2));
-        r.iva          = parseFloat((s.iva15||0).toFixed(2)) || r.iva;
-      } else if(xmlParsed.imp?.length) {
+        r.iva          = parseFloat((s.iva15||r.iva||0).toFixed(2));
+      } else if(xmlParsed.imp?.length){
         let baseG=0, ivaR=0;
-        xmlParsed.imp.forEach(i=>{ if(i.cod==='2'){ baseG+=parseFloat(i.base||0); ivaR+=parseFloat(i.val||0); } });
+        xmlParsed.imp.forEach(i=>{ if(i.cod==='2'&&parseFloat(i.val)>0){ baseG+=parseFloat(i.base||0); ivaR+=parseFloat(i.val||0); } });
         r.baseGravada = parseFloat(baseG.toFixed(2));
-        r.iva         = parseFloat(ivaR.toFixed(2)) || r.iva;
-        r.ice         = 0;
+        r.iva         = parseFloat(ivaR.toFixed(2))||r.iva;
+        r.base0       = parseFloat(Math.max(r.valSin - r.baseGravada, 0).toFixed(2));
       }
       r.alerta    = '';
       r.corregido = true;
@@ -471,49 +558,90 @@ const CRF={"303":"Honorarios 10%","304":"Intelecto 8%","307":"M.obra 2%","309":"
 function gx(el,s){return el.querySelector?.(s)?.textContent?.trim()||'';}
 
 function parsearXML(xmlStr){
-  const doc=new DOMParser().parseFromString(xmlStr,'application/xml');
-  if(doc.querySelector('parsererror')) throw new Error('XML inválido');
+  // ── PASO 1: extraer XML real del envoltorio <autorizacion><comprobante><![CDATA[...]]> ──
+  // El SRI descarga los XML envueltos en un contenedor de autorización
+  let xmlReal = xmlStr.trim();
+
+  // Si tiene estructura <autorizacion>...</autorizacion>, extraer el comprobante interno
+  if(xmlReal.includes('<autorizacion>') || xmlReal.includes('CDATA')){
+    // Método 1: extraer CDATA
+    const cdataMatch = xmlReal.match(/<!\[CDATA\[([\s\S]*?)\]\]>/);
+    if(cdataMatch){
+      xmlReal = cdataMatch[1].trim();
+    } else {
+      // Método 2: parsear el contenedor y obtener texto del <comprobante>
+      const docWrap = new DOMParser().parseFromString(xmlReal,'application/xml');
+      const compNodo = docWrap.querySelector('comprobante');
+      if(compNodo && compNodo.textContent.trim().startsWith('<')){
+        xmlReal = compNodo.textContent.trim();
+      }
+    }
+  }
+
+  // ── PASO 2: parsear el XML real del comprobante ──
+  const doc = new DOMParser().parseFromString(xmlReal,'application/xml');
+  if(doc.querySelector('parsererror')) throw new Error('XML inválido o formato no reconocido');
+
   const cod=gx(doc,'codDoc');
   const tipo=cod==='01'?'factura':cod==='04'?'notaCredito':cod==='05'?'notaDebito':cod==='07'?'retencion':cod==='03'?'liquidacion':cod==='06'?'guiaRemision':'desconocido';
-  const it={ambiente:gx(doc,'ambiente')==='1'?'Pruebas':gx(doc,'ambiente')==='2'?'Producción':gx(doc,'ambiente'),razonSocial:gx(doc,'razonSocial'),ruc:gx(doc,'ruc'),claveAcceso:gx(doc,'claveAcceso'),codDoc:cod,estab:gx(doc,'estab'),ptoEmi:gx(doc,'ptoEmi'),secuencial:gx(doc,'secuencial'),dirMatriz:gx(doc,'dirMatriz')};
+
+  // Clave de acceso: puede venir en <claveAcceso> o en <numeroAutorizacion> del envoltorio
+  let claveAcceso = gx(doc,'claveAcceso');
+  if(!claveAcceso){
+    const docWrap2 = new DOMParser().parseFromString(xmlStr,'application/xml');
+    claveAcceso = gx(docWrap2,'numeroAutorizacion') || gx(docWrap2,'claveAcceso') || '';
+  }
+
+  const it={
+    ambiente: gx(doc,'ambiente')==='1'?'Pruebas':gx(doc,'ambiente')==='2'?'Producción':gx(doc,'ambiente'),
+    razonSocial: gx(doc,'razonSocial'),
+    ruc: gx(doc,'ruc'),
+    claveAcceso,
+    codDoc: cod,
+    estab: gx(doc,'estab'),
+    ptoEmi: gx(doc,'ptoEmi'),
+    secuencial: gx(doc,'secuencial'),
+    dirMatriz: gx(doc,'dirMatriz'),
+  };
   const numeroComprobante=`${it.estab}-${it.ptoEmi}-${it.secuencial}`;
   let id={},det=[],imp=[],ret=[],pag=[];
+  let subtotales=null;
 
-  // ── SUBTOTALES EXACTOS — la clave de la corrección ──
-  let subtotales = null;
   if(tipo==='factura'){
     const info=doc.querySelector('infoFactura');
     if(info){
-      // Subtotales directos de la factura (lo que muestra el PDF)
-      const sub15    = parseFloat(gx(info,'totalSinImpuestos')||0)||0;  // base gravada
       const propina  = parseFloat(gx(info,'propina')||0)||0;
-      const iva15    = 0; // se calcula de impuestos
       const totalVal = parseFloat(gx(info,'importeTotal')||0)||0;
+      const totalSin = parseFloat(gx(info,'totalSinImpuestos')||0)||0;
 
-      // Recorrer totalConImpuestos para sacar IVA, bases y ICE por separado
-      let ivaReal=0, baseGrav=0, iceReal=0;
+      // Recorrer totalConImpuestos: sumar bases e IVA por código
+      // cod=2 → IVA (varias tarifas posibles: 0%, 5%, 8%, 15%)
+      // cod=3 → ICE
+      let ivaReal=0, baseGrav15=0, baseGrav0=0, iceReal=0;
       info.querySelectorAll('totalConImpuestos totalImpuesto').forEach(i=>{
-        const c=gx(i,'codigo'), base=parseFloat(gx(i,'baseImponible')||0)||0, val=parseFloat(gx(i,'valor')||0)||0;
-        if(c==='2'){ ivaReal+=val; baseGrav+=base; }      // IVA
-        else if(c==='3'){ iceReal+=val; }                  // ICE
-        imp.push({cod:c,pct:gx(i,'codigoPorcentaje'),base:base.toFixed(2),val:val.toFixed(2)});
+        const c   = gx(i,'codigo');
+        const pct = gx(i,'codigoPorcentaje');
+        const base= parseFloat(gx(i,'baseImponible')||0)||0;
+        const val = parseFloat(gx(i,'valor')||0)||0;
+        if(c==='2'){
+          if(val > 0){ ivaReal+=val; baseGrav15+=base; } // tiene IVA → base gravada
+          else { baseGrav0+=base; }                       // val=0 → tarifa 0% o exento
+        } else if(c==='3'){ iceReal+=val; }
+        imp.push({cod:c,pct,base:base.toFixed(2),val:val.toFixed(2)});
       });
 
-      // Subtotales que vienen explícitos en el XML de algunos emisores
-      // Campo subtotalNoObjetoIva, subtotalExentoIva, etc.
-      const subNoObj  = parseFloat(gx(info,'totalSubsidio')||0)||0; // algunos XMLs
-      const subExento = 0;
+      // Si no hay desglose por tarifa, usar totalSinImpuestos
+      if(baseGrav15===0 && ivaReal>0) baseGrav15=totalSin-propina;
 
-      // La base gravada real es la que está en totalConImpuestos código 2
-      // Si no hay ese campo, usamos totalSinImpuestos - propina
-      const baseGravReal = baseGrav > 0 ? baseGrav : sub15 - propina;
-      const base0 = parseFloat((totalVal - ivaReal - baseGravReal - propina).toFixed(2));
+      // base0 = diferencia entre total y (base15 + IVA + ICE + propina)
+      const base0calc = parseFloat((totalVal - baseGrav15 - ivaReal - iceReal - propina).toFixed(2));
+      const base0 = Math.max(base0calc, baseGrav0);
 
-      subtotales = {
-        sub15:    parseFloat(baseGravReal.toFixed(2)),
+      subtotales={
+        sub15:    parseFloat(baseGrav15.toFixed(2)),
         sub0:     base0 > 0.01 ? parseFloat(base0.toFixed(2)) : 0,
-        subExento,
-        subNoObj,
+        subExento:0,
+        subNoObj: 0,
         propina,
         ice:      parseFloat(iceReal.toFixed(2)),
         iva15:    parseFloat(ivaReal.toFixed(2)),
@@ -527,7 +655,10 @@ function parsearXML(xmlStr){
   } else if(tipo==='retencion'){
     const info=doc.querySelector('infoCompRetencion,infoComprobanteRetencion');
     if(info) id={fechaEmision:gx(info,'fechaEmision'),periodoFiscal:gx(info,'periodoFiscal'),rsRet:gx(info,'razonSocialSujetoRetenido'),idRet:gx(info,'identificacionSujetoRetenido')};
-    doc.querySelectorAll('impuestos impuesto,retenciones retencion').forEach(r=>{const c=gx(r,'codigo'),cr=gx(r,'codigoRetencion');ret.push({tipo:c==='1'?'Renta':'IVA',cod:cr,desc:c==='1'?`RF: ${CRF[cr]||cr}`:cr,base:(+gx(r,'baseImponible')||0).toFixed(2),pct:gx(r,'porcentajeRetener'),val:(+gx(r,'valorRetenido')||0).toFixed(2)});});
+    doc.querySelectorAll('impuestos impuesto,retenciones retencion').forEach(r=>{
+      const c=gx(r,'codigo'),cr=gx(r,'codigoRetencion');
+      ret.push({tipo:c==='1'?'Renta':'IVA',cod:cr,desc:c==='1'?`RF: ${CRF[cr]||cr}`:cr,base:(+gx(r,'baseImponible')||0).toFixed(2),pct:gx(r,'porcentajeRetener'),val:(+gx(r,'valorRetenido')||0).toFixed(2)});
+    });
   }
   return {tipo,it,id,det,imp,ret,pag,subtotales,numeroComprobante,nFilas:1};
 }
@@ -563,14 +694,20 @@ function renderFixPanel(){
       Descarga el XML desde el portal SRI → Comprobantes recibidos → clic en la factura → Descargar XML.
     </div>
 
-    <div class="dropzone dz-xml" style="margin-bottom:12px"
+    <div class="dropzone dz-xml" style="margin-bottom:8px"
       onclick="document.getElementById('fiXml').click()"
       ondragover="event.preventDefault();this.classList.add('drag')"
       ondragleave="this.classList.remove('drag')"
       ondrop="onDropXml(event)">
       <input type="file" id="fiXml" accept=".xml" multiple onchange="onFilesXml(this.files)">
-      📄 Arrastra aquí los XML de las facturas marcadas<br>
+      📄 Arrastra XMLs o una carpeta completa aquí<br>
       <span style="font-size:10px">Varios a la vez · Se emparejan automáticamente por número de serie o clave de acceso</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="btn btn-warn btn-sm" style="flex:1" onclick="document.getElementById('fiXmlCarpeta').click()">
+        📁 Cargar carpeta de XMLs
+      </button>
+      <input type="file" id="fiXmlCarpeta" webkitdirectory multiple accept=".xml" style="display:none" onchange="onFilesXml(this.files)">
     </div>
 
     <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:8px">Facturas pendientes (${pendientes.length}):</div>`;
@@ -622,30 +759,23 @@ function renderFixPanel(){
   el.innerHTML=html;
 }
 
-function onDropXml(e){ e.preventDefault(); e.currentTarget.classList.remove('drag'); onFilesXml(e.dataTransfer.files); }
+function onDropXml(e){
+  e.preventDefault(); e.currentTarget.classList.remove('drag');
+  if(e.dataTransfer.items){
+    Array.from(e.dataTransfer.items).forEach(item=>{
+      if(item.kind==='file'){
+        const entry=item.webkitGetAsEntry?.();
+        if(entry?.isDirectory) leerDirectorio(entry);
+        else { const f=item.getAsFile(); if(f) leerArchivo(f); }
+      }
+    });
+  } else { Array.from(e.dataTransfer.files).forEach(f=>leerArchivo(f)); }
+}
+
 function onFilesXml(files){
-  Array.from(files).forEach(f=>{
-    const r=new FileReader();
-    r.onload=e=>{
-      try{
-        const p=parsearXML(e.target.result);
-        const serie=p.numeroComprobante;
-        xmlPool[serie]=p;
-        const a=archivos.find(x=>x.id===activoId);
-        if(a?.parsed?.rowsClasif){
-          const n=aplicarXMLaFilas(a.parsed.rowsClasif,p,serie);
-          if(n>0){
-            a.parsed.totales=calcularTotales(a.parsed.rowsClasif);
-            renderFixPanel(); actualizarBadgeFix(); renderVista(a);
-            showToast(`✅ Corregida: ${serie}`,'success');
-          } else {
-            showToast(`XML cargado pero no coincide con ninguna fila del TXT: ${serie}`,'warn');
-          }
-        }
-      }catch(err){ showToast('Error en XML: '+err.message,'error'); }
-    };
-    r.readAsText(f,'UTF-8');
-  });
+  const total=Array.from(files).length;
+  if(total>5) showToast(`Procesando ${total} XMLs...`,'info');
+  Array.from(files).forEach(f=>leerArchivo(f));
 }
 
 // ══════════════════════════════════════════════════════════
