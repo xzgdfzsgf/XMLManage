@@ -120,9 +120,9 @@ input[type=checkbox]{width:14px;height:14px;accent-color:#1d4ed8}
     </div>
 
     <!-- Botones de carga rápida -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <button class="btn btn-primary btn-sm" onclick="document.getElementById('fi').click()" style="text-align:center">
-        📄 Cargar TXT
+        📄 Cargar TXT del SRI
       </button>
       <button class="btn btn-outline btn-sm" onclick="document.getElementById('fiCarpeta').click()" style="text-align:center;border-color:#d97706;color:#d97706">
         📁 Cargar carpeta XMLs
@@ -130,14 +130,18 @@ input[type=checkbox]{width:14px;height:14px;accent-color:#1d4ed8}
       <input type="file" id="fiCarpeta" webkitdirectory multiple accept=".xml" style="display:none" onchange="onFiles(this.files)">
     </div>
 
+    <!-- Indicador de XMLs en espera (se muestra cuando hay XMLs pero no TXT) -->
+    <div id="xmlPoolCount" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;font-size:11px;color:#92400e;margin-bottom:8px;text-align:center"></div>
+
     <div id="fileList">
       <div class="empty-state">
         <div class="icon">🇪🇨</div>
         <div class="title">Sin archivos cargados</div>
-        <div style="font-size:11px;color:#9ca3af;line-height:1.6">
-          1. Descarga el <strong>TXT de Comprobantes Recibidos</strong> del portal SRI<br>
-          2. Cárgalo aquí con el botón azul<br>
-          3. Para corregir facturas mixtas, usa <strong>"Cargar carpeta XMLs"</strong>
+        <div style="font-size:11px;color:#9ca3af;line-height:1.8">
+          <strong>Flujo recomendado:</strong><br>
+          1. Carga primero la <strong>carpeta de XMLs</strong> del mes<br>
+          2. Luego carga el <strong>TXT de Comprobantes Recibidos</strong><br>
+          3. Las facturas mixtas se corrigen automáticamente
         </div>
       </div>
     </div>
@@ -349,14 +353,20 @@ function procesarArchivo(nombre, content, size) {
       // Debounce para no re-renderizar en cada XML de una carpeta
       clearTimeout(xmlTimer);
       xmlTimer = setTimeout(() => {
+        const hayTXT = archivos.length > 0;
         const a = archivos.find(x=>x.id===activoId);
         if(a) { renderVista(a); actualizarBadgeFix(); renderFixPanel(); }
-        if(xmlCargados > 1){
-          showToast(`✅ ${xmlCargados} XML procesados · ${xmlCorregidos} facturas corregidas`, 'success');
-        } else if(totalCorregidas > 0){
-          showToast(`✅ Corregida: ${serie}`, 'success');
+
+        if(!hayTXT){
+          // No hay TXT cargado todavía — XMLs en espera
+          showToast(`📥 ${xmlCargados} XML guardados · Ahora carga tu TXT para corregir`, 'info');
+          // Mostrar indicador en la UI
+          document.getElementById('xmlPoolCount').textContent = `📥 ${Object.keys(xmlPool).length} XMLs listos para corregir`;
+          document.getElementById('xmlPoolCount').style.display = 'block';
+        } else if(xmlCorregidos > 0){
+          showToast(`✅ ${xmlCorregidos} factura${xmlCorregidos>1?'s':''} corregida${xmlCorregidos>1?'s':''} de ${xmlCargados} XML`, 'success');
         } else {
-          showToast(`XML cargado (sin match en TXT): ${serie}`, 'info');
+          showToast(`${xmlCargados} XML procesados · No coinciden con facturas del TXT`, 'warn');
         }
         xmlCargados = 0; xmlCorregidos = 0;
       }, 400);
@@ -370,17 +380,31 @@ function procesarArchivo(nombre, content, size) {
   // TXT / CSV
   let parsed=null, error=null;
   try { parsed=parsearTXT(content); } catch(e){ error=e.message; }
-  // Al cargar un nuevo TXT, aplicar XML del pool que ya estén cargados
+
+  // Aplicar XMLs del pool que ya estén cargados
+  let xmlAplicados = 0;
   if(parsed?.rowsClasif && Object.keys(xmlPool).length > 0){
-    let n = 0;
     Object.values(xmlPool).forEach(p => {
-      n += aplicarXMLaFilas(parsed.rowsClasif, p, p.numeroComprobante);
+      if(p.numeroComprobante){
+        const n = aplicarXMLaFilas(parsed.rowsClasif, p, p.numeroComprobante);
+        xmlAplicados += n;
+      }
     });
-    if(n > 0) parsed.totales = calcularTotales(parsed.rowsClasif);
+    if(xmlAplicados > 0) parsed.totales = calcularTotales(parsed.rowsClasif);
   }
+
   const a={ id:Date.now()+Math.random(), nombre, content, parsed, error, tipo:'txt', size };
   archivos.push(a); activoId=a.id;
+
+  // Ocultar indicador de XMLs en espera
+  const poolCount = document.getElementById('xmlPoolCount');
+  if(poolCount) poolCount.style.display = 'none';
+
   renderFileList(); renderVista(a); actualizarBadgeFix(); goTab('vista');
+
+  if(xmlAplicados > 0){
+    showToast(`✅ TXT cargado · ${xmlAplicados} factura${xmlAplicados>1?'s':''} ya corregidas con los ${Object.keys(xmlPool).length} XML previos`, 'success');
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -852,17 +876,34 @@ function renderTXTVista(p){
       <span class="badge badge-green">Portal SRI</span>
     </div>
     <div class="tbl-wrap">
-      <table><thead><tr><th>Emisor</th><th>Serie</th><th>Fecha</th><th style="text-align:right">Base Grav.</th><th style="text-align:right">Base 0%</th><th style="text-align:right">IVA</th><th style="text-align:right">Propina/ICE</th><th style="text-align:right">Total</th><th></th></tr></thead>
-      <tbody>${rowsClasif.slice(0,150).map(r=>`<tr style="${r.corregido?'background:#f0fdf4':r.alerta&&!r.corregido&&r.alerta!=='propina/ICE: no declara en IVA'?'background:#fffbeb':''}">
-        <td style="max-width:110px;overflow:hidden;text-overflow:ellipsis;font-size:10px">${r.RAZON_SOCIAL_EMISOR||''}</td>
+      <table><thead><tr>
+        <th>Emisor</th><th>Serie</th><th>Fecha</th>
+        <th style="text-align:right">Base Grav.</th>
+        <th style="text-align:right">Base 0%</th>
+        <th style="text-align:right">IVA</th>
+        <th style="text-align:right">Propina</th>
+        <th style="text-align:right">ICE</th>
+        <th style="text-align:right">Total</th>
+        <th style="text-align:center">PDF</th>
+      </tr></thead>
+      <tbody>${rowsClasif.slice(0,150).map((r,idx)=>`<tr style="${r.corregido?'background:#f0fdf4':r.alerta&&!r.corregido&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'?'background:#fffbeb':''}">
+        <td style="max-width:90px;overflow:hidden;text-overflow:ellipsis;font-size:10px">${r.RAZON_SOCIAL_EMISOR||''}</td>
         <td style="font-family:monospace;font-size:9px">${r.SERIE_COMPROBANTE||''}</td>
         <td style="font-size:10px">${r.FECHA_EMISION||''}</td>
         <td class="td-num td-green">${r.baseGravada>0?'$'+r.baseGravada.toFixed(2):''}</td>
         <td class="td-num">${r.base0>0?'$'+r.base0.toFixed(2):''}</td>
         <td class="td-num td-red">${r.iva>0?'$'+r.iva.toFixed(2):''}</td>
-        <td class="td-num td-orange">${r.propina>0?'$'+r.propina.toFixed(2):''}</td>
+        <td class="td-num" style="color:#c2410c">${r.propina>0?'$'+r.propina.toFixed(2):''}</td>
+        <td class="td-num" style="color:#7e22ce">${r.ice>0?'$'+r.ice.toFixed(2):''}</td>
         <td class="td-num" style="font-weight:700">$${r.total.toFixed(2)}</td>
-        <td>${r.corregido?'<span style="font-size:10px;color:#15803d">✅</span>':r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'?'<span style="font-size:10px;color:#c2410c;cursor:pointer" onclick="goTab(\'fix\')">⚠️</span>':''}</td>
+        <td style="text-align:center;padding:3px">
+          ${r.corregido
+            ? '<button onclick="imprimirPDFFactura('+idx+')" title="PDF con datos exactos del XML" style="background:#15803d;color:#fff;border:none;border-radius:4px;padding:2px 7px;font-size:10px;cursor:pointer">🖨️</button>'
+            : (r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'
+              ? '<span style="font-size:12px;cursor:pointer" onclick="goTab(\'fix\')" title="'+r.alerta+'">⚠️</span>'
+              : '<button onclick="imprimirPDFFactura('+idx+')" title="PDF de esta factura" style="background:#e2e8f0;color:#475569;border:none;border-radius:4px;padding:2px 7px;font-size:10px;cursor:pointer">🖨️</button>')
+          }
+        </td>
       </tr>`).join('')}</tbody></table>
     </div>
     ${nFilas>150?`<div style="padding:5px 10px;font-size:10px;color:#9ca3af">Mostrando 150/${nFilas}. Se exportan todos.</div>`:''}
@@ -1149,74 +1190,132 @@ async function exportar104AExcel(){
 function imprimirPDF(modo) {
   const a = archivos.find(x=>x.id===activoId);
   if (!a?.parsed) { showToast('Carga un archivo primero','warn'); return; }
-
   let titulo = '', htmlContenido = '';
-
   if (modo === '104a') {
-    // PDF del Formulario 104A
     const t = a.parsed.totales || {};
     titulo = 'Formulario 104A — Declaración IVA';
     htmlContenido = generarHTML104A(t, a.nombre);
   } else {
-    // PDF del resumen de comprobantes (TXT)
     titulo = 'Resumen Comprobantes SRI — ' + a.nombre;
     htmlContenido = generarHTMLResumen(a.parsed);
   }
+  abrirVentanaPDF(titulo, htmlContenido);
+}
 
+// PDF de una factura individual desde la tabla
+function imprimirPDFFactura(idx) {
+  const a = archivos.find(x=>x.id===activoId);
+  if (!a?.parsed?.rowsClasif) return;
+  const r = a.parsed.rowsClasif[idx];
+  if (!r) return;
+  const titulo = `Factura ${r.SERIE_COMPROBANTE||''} — ${r.RAZON_SOCIAL_EMISOR||''}`;
+  const html = generarHTMLFacturaIndividual(r);
+  abrirVentanaPDF(titulo, html);
+}
+
+function abrirVentanaPDF(titulo, htmlContenido) {
   const ventana = window.open('', '_blank', 'width=900,height=700');
   ventana.document.write(`<!DOCTYPE html>
-<html lang="es">
-<head>
+<html lang="es"><head>
 <meta charset="UTF-8"/>
 <title>${titulo}</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #111; background: #fff; padding: 24px; }
-  h1 { font-size: 16px; color: #1e3a5f; margin-bottom: 4px; }
-  h2 { font-size: 12px; color: #374151; margin: 16px 0 6px; border-bottom: 2px solid #1e3a5f; padding-bottom: 3px; }
-  .sub { font-size: 10px; color: #6b7280; margin-bottom: 14px; }
-  table { border-collapse: collapse; width: 100%; margin-bottom: 14px; }
-  th { background: #1e3a5f; color: #fff; padding: 5px 8px; text-align: left; font-size: 10px; }
-  td { padding: 4px 8px; border-bottom: 1px solid #e5e7eb; font-size: 10px; }
-  tr:nth-child(even) td { background: #f9fafb; }
-  .num { text-align: right; font-family: monospace; }
-  .green { color: #15803d; font-weight: 700; }
-  .red { color: #dc2626; }
-  .orange { color: #c2410c; }
-  .corregido { background: #f0fdf4 !important; }
-  .alerta { background: #fffbeb !important; }
-  .cas-table td:first-child { font-weight: 800; color: #1d4ed8; width: 60px; }
-  .cas-table td:last-child { font-weight: 700; font-family: monospace; text-align: right; }
-  .seccion-hdr { background: #1e3a5f; color: #fff; padding: 5px 10px; font-weight: 700; margin: 12px 0 0; }
-  .total-row td { font-weight: 800; background: #f0fdf4 !important; border-top: 2px solid #15803d; }
-  .nota { background: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; padding: 8px 12px; margin: 10px 0; font-size: 10px; }
-  .pie { margin-top: 20px; font-size: 9px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 8px; }
-  .badge-corr { display:inline-block; background:#dcfce7; color:#15803d; border-radius:3px; padding:1px 5px; font-size:9px; font-weight:700; }
-  .badge-alerta { display:inline-block; background:#fef9c3; color:#854d0e; border-radius:3px; padding:1px 5px; font-size:9px; font-weight:700; }
-  @media print {
-    body { padding: 12px; }
-    button { display: none !important; }
-    @page { margin: 15mm; size: A4; }
-  }
-</style>
-</head>
-<body>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;font-size:11px;color:#111;background:#fff;padding:24px}
+h1{font-size:16px;color:#1e3a5f;margin-bottom:4px}
+h2{font-size:12px;color:#374151;margin:16px 0 6px;border-bottom:2px solid #1e3a5f;padding-bottom:3px}
+.sub{font-size:10px;color:#6b7280;margin-bottom:14px}
+table{border-collapse:collapse;width:100%;margin-bottom:14px}
+th{background:#1e3a5f;color:#fff;padding:5px 8px;text-align:left;font-size:10px}
+td{padding:4px 8px;border-bottom:1px solid #e5e7eb;font-size:10px}
+tr:nth-child(even) td{background:#f9fafb}
+.num{text-align:right;font-family:monospace}
+.green{color:#15803d;font-weight:700}.red{color:#dc2626}.orange{color:#c2410c}.purple{color:#7e22ce}
+.corregido{background:#f0fdf4!important}.alerta{background:#fffbeb!important}
+.total-row td{font-weight:800;background:#f0fdf4!important;border-top:2px solid #15803d}
+.nota{background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:8px 12px;margin:10px 0;font-size:10px}
+.nota-verde{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;padding:8px 12px;margin:10px 0;font-size:10px}
+.nota-azul{background:#eff6ff;border:1px solid #bfdbfe;border-radius:4px;padding:8px 12px;margin:10px 0;font-size:10px}
+.badge-xml{display:inline-block;background:#dcfce7;color:#15803d;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700}
+.badge-warn{display:inline-block;background:#fef9c3;color:#854d0e;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700}
+.fact-hdr{background:linear-gradient(135deg,#1e3a5f,#1e40af);color:#fff;border-radius:8px;padding:14px;margin-bottom:12px}
+.fact-tipo{font-size:16px;font-weight:800;margin-bottom:4px}
+.fact-serie{font-family:monospace;font-size:12px;color:#93c5fd}
+.fact-ruc{font-size:10px;color:#bfdbfe;margin-top:3px}
+.fact-total{font-size:22px;font-weight:900;color:#4ade80}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.grid2-box{border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px}
+.label{font-size:9px;color:#9ca3af;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.pie{margin-top:20px;font-size:9px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:8px}
+@media print{body{padding:12px}button{display:none!important}@page{margin:15mm;size:A4}}
+</style></head><body>
 ${htmlContenido}
-<div class="pie">
-  Generado por Gestor SRI Ecuador · ${new Date().toLocaleString('es-EC')} · Solo para uso de apoyo contable — verifique con documentos originales antes de declarar.
-</div>
-<br>
-<button onclick="window.print()" style="background:#1d4ed8;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">🖨️ Imprimir / Guardar como PDF</button>
-</body>
-</html>`);
+<div class="pie">Generado por Gestor SRI Ecuador · ${new Date().toLocaleString('es-EC')} · Solo para uso de apoyo contable.</div>
+<br><button onclick="window.print()" style="background:#1d4ed8;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700">🖨️ Imprimir / Guardar como PDF</button>
+</body></html>`);
   ventana.document.close();
 }
+
+function generarHTMLFacturaIndividual(r) {
+  const fuenteXML = r.corregido ? `<span class="badge-xml">✓ Corregido con XML</span>` : `<span class="badge-warn">⚠ Estimado (sin XML)</span>`;
+  return `
+  <div class="fact-hdr">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div class="fact-tipo">${r.TIPO_COMPROBANTE||'Factura'}</div>
+        <div class="fact-serie">${r.SERIE_COMPROBANTE||''}</div>
+        <div class="fact-ruc">${r.RAZON_SOCIAL_EMISOR||''} · RUC: ${r.RUC_EMISOR||''}</div>
+      </div>
+      <div style="text-align:right">
+        ${fuenteXML}
+        <div class="fact-total" style="margin-top:8px">$${r.total.toFixed(2)}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="grid2-box">
+      <div class="label">Emisor</div>
+      <div style="font-weight:700">${r.RAZON_SOCIAL_EMISOR||'—'}</div>
+      <div style="font-family:monospace;font-size:10px;color:#6b7280">RUC: ${r.RUC_EMISOR||'—'}</div>
+    </div>
+    <div class="grid2-box">
+      <div class="label">Receptor</div>
+      <div style="font-family:monospace">${r.IDENTIFICACION_RECEPTOR||'—'}</div>
+      <div style="font-size:10px;color:#6b7280">Fecha: ${r.FECHA_EMISION||'—'}</div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Concepto</th><th style="text-align:right">Valor</th><th>Casillero 104A</th></tr>
+    <tr><td><strong>BASE GRAVADA</strong> (tarifa 15%/8%/5%)</td><td class="num green">$${r.baseGravada.toFixed(2)}</td><td style="font-size:10px;color:#15803d">→ 500</td></tr>
+    ${r.base0>0?`<tr><td>BASE 0%</td><td class="num">$${r.base0.toFixed(2)}</td><td style="font-size:10px;color:#6b7280">→ 507</td></tr>`:''}
+    ${r.baseExenta>0?`<tr><td>BASE EXENTA</td><td class="num">$${r.baseExenta.toFixed(2)}</td><td style="font-size:10px;color:#7e22ce">→ 510</td></tr>`:''}
+    ${r.baseNoObje>0?`<tr><td>BASE NO OBJETO</td><td class="num">$${r.baseNoObje.toFixed(2)}</td><td style="font-size:10px;color:#7e22ce">→ 509</td></tr>`:''}
+    <tr><td><strong>IVA</strong></td><td class="num red">$${r.iva.toFixed(2)}</td><td style="font-size:10px;color:#dc2626">→ 501/601</td></tr>
+    ${r.propina>0?`<tr><td>PROPINA <span style="font-size:9px;color:#9ca3af">(no declara en IVA)</span></td><td class="num orange">$${r.propina.toFixed(2)}</td><td style="font-size:10px;color:#9ca3af">—</td></tr>`:''}
+    ${r.ice>0?`<tr><td>ICE <span style="font-size:9px;color:#9ca3af">(no declara en IVA)</span></td><td class="num purple">$${r.ice.toFixed(2)}</td><td style="font-size:10px;color:#9ca3af">—</td></tr>`:''}
+    <tr class="total-row"><td><strong>IMPORTE TOTAL</strong></td><td class="num"><strong>$${r.total.toFixed(2)}</strong></td><td></td></tr>
+  </table>
+
+  ${r.corregido
+    ? `<div class="nota-verde">✅ <strong>Datos verificados con XML.</strong> Las bases son exactas según el comprobante electrónico del SRI.</div>`
+    : `<div class="nota">⚠️ <strong>Datos estimados (sin XML cargado).</strong> La separación de bases es aproximada. Carga el XML en la pestaña 🔧 Corregir para obtener valores exactos.</div>`
+  }
+
+  <div class="nota-azul" style="font-size:10px">
+    <strong>Clave de acceso:</strong><br>
+    <span style="font-family:monospace;word-break:break-all">${r.CLAVE_ACCESO||'—'}</span>
+  </div>`;
+}
+
 
 function generarHTMLResumen(p) {
   const t = p.totales || {};
   const rows = p.rowsClasif || [];
   const pendientes = rows.filter(r=>r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'&&!r.corregido);
   const corregidas = rows.filter(r=>r.corregido);
+  const totalICE = rows.reduce((s,r)=>s+(r.ice||0),0);
 
   return `
   <h1>Resumen de Comprobantes Recibidos</h1>
@@ -1224,47 +1323,51 @@ function generarHTMLResumen(p) {
 
   <h2>Totales del período</h2>
   <table>
-    <tr><th>Concepto</th><th style="text-align:right">Valor</th></tr>
-    <tr><td>Base Gravada Tarifa 15% (Casillero 500)</td><td class="num green">$${(t.totalBaseGrav||0).toFixed(2)}</td></tr>
-    <tr><td>IVA 15% pagado (Casillero 501)</td><td class="num red">$${(t.totalIVA||0).toFixed(2)}</td></tr>
-    <tr><td>Base Tarifa 0% (Casillero 507)</td><td class="num">$${(t.totalBase0||0).toFixed(2)}</td></tr>
-    ${t.totalExenta>0?`<tr><td>Base Exenta (Casillero 510)</td><td class="num">$${t.totalExenta.toFixed(2)}</td></tr>`:''}
-    ${t.totalNoObje>0?`<tr><td>Base No Objeto (Casillero 509)</td><td class="num">$${t.totalNoObje.toFixed(2)}</td></tr>`:''}
-    <tr><td class="orange">Propina acumulada (NO declara en IVA)</td><td class="num orange">$${(t.totalPropina||0).toFixed(2)}</td></tr>
-    <tr class="total-row"><td><strong>IMPORTE TOTAL</strong></td><td class="num"><strong>$${(t.totalImporte||0).toFixed(2)}</strong></td></tr>
+    <tr><th>Concepto</th><th style="text-align:right">Valor</th><th>Casillero 104A</th></tr>
+    <tr><td><strong>Base Gravada</strong> (tarifa 15%/8%/5%)</td><td class="num green">$${(t.totalBaseGrav||0).toFixed(2)}</td><td style="font-size:10px;color:#15803d">→ 500</td></tr>
+    <tr><td><strong>IVA pagado</strong></td><td class="num red">$${(t.totalIVA||0).toFixed(2)}</td><td style="font-size:10px;color:#dc2626">→ 501 / 601</td></tr>
+    <tr><td>Base Tarifa 0%</td><td class="num">$${(t.totalBase0||0).toFixed(2)}</td><td style="font-size:10px;color:#6b7280">→ 507</td></tr>
+    ${(t.totalExenta||0)>0?`<tr><td>Base Exenta</td><td class="num">$${t.totalExenta.toFixed(2)}</td><td style="font-size:10px;color:#7e22ce">→ 510</td></tr>`:''}
+    ${(t.totalNoObje||0)>0?`<tr><td>Base No Objeto</td><td class="num">$${t.totalNoObje.toFixed(2)}</td><td style="font-size:10px;color:#7e22ce">→ 509</td></tr>`:''}
+    ${(t.totalPropina||0)>0?`<tr><td class="orange">Propina (NO declara en IVA)</td><td class="num orange">$${t.totalPropina.toFixed(2)}</td><td style="font-size:10px;color:#9ca3af">—</td></tr>`:''}
+    ${totalICE>0?`<tr><td style="color:#7e22ce">ICE (NO declara en IVA)</td><td class="num" style="color:#7e22ce">$${totalICE.toFixed(2)}</td><td style="font-size:10px;color:#9ca3af">—</td></tr>`:''}
+    <tr class="total-row"><td><strong>IMPORTE TOTAL</strong></td><td class="num"><strong>$${(t.totalImporte||0).toFixed(2)}</strong></td><td></td></tr>
   </table>
 
-  ${pendientes.length>0?`<div class="nota">⚠️ <strong>${pendientes.length} factura${pendientes.length>1?'s':''} con bases estimadas</strong> — subir XML para corregir exactamente.</div>`:''}
+  ${pendientes.length>0?`<div class="nota">⚠️ <strong>${pendientes.length} factura${pendientes.length>1?'s':''} con bases estimadas</strong> — sube el XML para corregir exactamente.</div>`:''}
   ${corregidas.length>0?`<div class="nota" style="background:#f0fdf4;border-color:#bbf7d0">✅ <strong>${corregidas.length} factura${corregidas.length>1?'s':''} corregida${corregidas.length>1?'s':''} con XML exacto.</strong></div>`:''}
 
   <h2>Detalle de comprobantes</h2>
   <table>
     <tr>
       <th>Emisor</th><th>Serie</th><th>Fecha</th>
-      <th style="text-align:right">Base 15%</th>
+      <th style="text-align:right">Base Grav.</th>
       <th style="text-align:right">Base 0%</th>
-      <th style="text-align:right">Propina</th>
       <th style="text-align:right">IVA</th>
+      <th style="text-align:right">Propina</th>
+      <th style="text-align:right">ICE</th>
       <th style="text-align:right">Total</th>
       <th>Estado</th>
     </tr>
-    ${rows.map(r=>`<tr class="${r.corregido?'corregido':r.alerta&&!r.corregido?'alerta':''}">
+    ${rows.map(r=>`<tr class="${r.corregido?'corregido':r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'&&!r.corregido?'alerta':''}">
       <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.RAZON_SOCIAL_EMISOR||''}</td>
       <td style="font-family:monospace;font-size:9px">${r.SERIE_COMPROBANTE||''}</td>
       <td>${r.FECHA_EMISION||''}</td>
       <td class="num green">${r.baseGravada>0?'$'+r.baseGravada.toFixed(2):''}</td>
       <td class="num">${r.base0>0?'$'+r.base0.toFixed(2):''}</td>
-      <td class="num orange">${r.propina>0?'$'+r.propina.toFixed(2):''}</td>
       <td class="num red">${r.iva>0?'$'+r.iva.toFixed(2):''}</td>
+      <td class="num orange">${r.propina>0?'$'+r.propina.toFixed(2):''}</td>
+      <td class="num" style="color:#7e22ce">${r.ice>0?'$'+r.ice.toFixed(2):''}</td>
       <td class="num"><strong>$${r.total.toFixed(2)}</strong></td>
-      <td>${r.corregido?'<span class="badge-corr">XML</span>':r.alerta&&r.alerta!=='sin datos'?'<span class="badge-alerta">⚠️</span>':''}</td>
+      <td>${r.corregido?'<span class="badge-corr">✓ XML</span>':r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'?'<span class="badge-alerta">⚠️</span>':''}</td>
     </tr>`).join('')}
     <tr class="total-row">
       <td colspan="3"><strong>TOTALES</strong></td>
       <td class="num green"><strong>$${(t.totalBaseGrav||0).toFixed(2)}</strong></td>
       <td class="num"><strong>$${(t.totalBase0||0).toFixed(2)}</strong></td>
-      <td class="num orange"><strong>$${(t.totalPropina||0).toFixed(2)}</strong></td>
       <td class="num red"><strong>$${(t.totalIVA||0).toFixed(2)}</strong></td>
+      <td class="num orange"><strong>$${(t.totalPropina||0).toFixed(2)}</strong></td>
+      <td class="num" style="color:#7e22ce"><strong>$${totalICE.toFixed(2)}</strong></td>
       <td class="num"><strong>$${(t.totalImporte||0).toFixed(2)}</strong></td>
       <td></td>
     </tr>
