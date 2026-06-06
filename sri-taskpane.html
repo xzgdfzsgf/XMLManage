@@ -1199,36 +1199,38 @@ async function exportTXT(p,hoja){
         const useFml=document.getElementById('chkFormula')?.checked!==false;
         const nRows=p.rowsClasif.length;
 
-        // 19 columnas — PROPINA e ICE separados + CORREGIDO_XML
+        // 19 columnas — CORREGIDO_XML junto a SERIE para visibilidad inmediata
         const hdrs=[
           'RUC_EMISOR',           // A
           'RAZON_SOCIAL_EMISOR',  // B
           'TIPO_COMPROBANTE',     // C
           'SERIE_COMPROBANTE',    // D
-          'CLAVE_ACCESO',         // E
-          'FECHA_AUTORIZACION',   // F
-          'FECHA_EMISION',        // G
-          'IDENTIFICACION_RECEPTOR', // H
-          'SUBTOTAL_SIN_IMPTOS',  // I — renombrado (del TXT, base+base0 juntos)
-          'BASE_EXENTA',          // J
-          'BASE_NO_OBJETO',       // K
-          'BASE_0%',              // L
-          'BASE_GRAVADA',         // M
-          'IVA',                  // N
-          'IMPORTE_TOTAL',        // O
-          'NUM_DOC_MODIFICADO',   // P
-          'PROPINA',              // Q — solo propina
-          'ICE',                  // R — solo ICE
-          'CORREGIDO_XML',        // S — ✓ si fue corregido con XML
+          'CORREGIDO_XML',        // E ← movido aquí para ver de inmediato
+          'CLAVE_ACCESO',         // F
+          'FECHA_AUTORIZACION',   // G
+          'FECHA_EMISION',        // H
+          'IDENTIFICACION_RECEPTOR', // I
+          'SUBTOTAL_SIN_IMPTOS',  // J
+          'BASE_EXENTA',          // K
+          'BASE_NO_OBJETO',       // L
+          'BASE_0%',              // M
+          'BASE_GRAVADA',         // N
+          'IVA',                  // O
+          'IMPORTE_TOTAL',        // P
+          'PROPINA',              // Q
+          'ICE',                  // R
+          'NUM_DOC_MODIFICADO',   // S
         ];
         const nCols=hdrs.length;
         ws.getRange(`A1:${colL(nCols)}1`).values=[hdrs];
-        ws.getRange(`A1:${colL(nCols)}1`).format.fill.color='#1e3a5f';
+        ws.getRange(`A1:${colL(nCols)}1`).format.fill.color='#258dd6';
         ws.getRange(`A1:${colL(nCols)}1`).format.font.color='#ffffff';
         ws.getRange(`A1:${colL(nCols)}1`).format.font.bold=true;
+        // Col E (CORREGIDO_XML) — color especial para destacar
+        ws.getRange(`E1`).format.fill.color='#1a6fb0';
 
         // Columnas texto — forzar formato @
-        ['A','D','E','H','P'].forEach(c=>{
+        ['A','D','F','I','S'].forEach(c=>{
           ws.getRange(`${c}2:${c}${nRows+1}`).numberFormat=[['@']];
         });
         await ctx.sync();
@@ -1238,49 +1240,51 @@ async function exportTXT(p,hoja){
           r.RAZON_SOCIAL_EMISOR||'',             // B
           r.TIPO_COMPROBANTE||'',                // C
           String(r.SERIE_COMPROBANTE||''),       // D
-          String(r.CLAVE_ACCESO||''),            // E
-          r.FECHA_AUTORIZACION||'',              // F
-          r.FECHA_EMISION||'',                   // G
-          String(r.IDENTIFICACION_RECEPTOR||''), // H
-          r.valSin||0,                           // I SUBTOTAL_SIN_IMPTOS (del TXT directo)
-          r.baseExenta||'',                      // J BASE_EXENTA
-          r.baseNoObje||'',                      // K BASE_NO_OBJETO
-          r.base0||'',                           // L BASE_0%
-          r.iva>0?r.baseGravada:'',              // M BASE_GRAVADA
-          r.iva,                                 // N IVA
-          r.total,                               // O IMPORTE_TOTAL
-          String(r.NUMERO_DOCUMENTO_MODIFICADO||''), // P
+          r.corregido?'✓ XML':'',               // E CORREGIDO_XML ← junto a serie
+          String(r.CLAVE_ACCESO||''),            // F
+          r.FECHA_AUTORIZACION||'',              // G
+          r.FECHA_EMISION||'',                   // H
+          String(r.IDENTIFICACION_RECEPTOR||''), // I
+          r.valSin||0,                           // J SUBTOTAL_SIN_IMPTOS
+          r.baseExenta||'',                      // K BASE_EXENTA
+          r.baseNoObje||'',                      // L BASE_NO_OBJETO
+          r.base0||'',                           // M BASE_0%
+          r.iva>0?r.baseGravada:'',              // N BASE_GRAVADA
+          r.iva,                                 // O IVA
+          r.total,                               // P IMPORTE_TOTAL
           r.propina||'',                         // Q PROPINA
           r.ice||'',                             // R ICE
-          r.corregido?'✓ XML':'',               // S CORREGIDO_XML
+          String(r.NUMERO_DOCUMENTO_MODIFICADO||''), // S
         ]);
         ws.getRange(`A2:${colL(nCols)}${nRows+1}`).values=bloque;
         await ctx.sync();
 
-        // Fórmula BASE_GRAVADA: =IVA/tarifa (usando 0.15 como default)
-        // Solo cuando NO fue corregida con XML (si fue corregida, el valor es exacto)
+        // Fórmula BASE_GRAVADA en col N
         if(useFml){
           const fmlaM=p.rowsClasif.map((r,i)=>{
-            if(r.corregido) return [r.baseGravada||'']; // XML exacto
-            return [r.iva>0?`=N${i+2}/0.15`:r.baseGravada||''];
+            if(r.corregido) return [r.baseGravada||''];
+            return [r.iva>0?`=O${i+2}/0.15`:r.baseGravada||''];
           });
-          ws.getRange(`M2:M${nRows+1}`).formulas=fmlaM;
+          ws.getRange(`N2:N${nRows+1}`).formulas=fmlaM;
           await ctx.sync();
         }
 
-        // Formato numérico
-        ['I','J','K','L','M','N','O','Q','R'].forEach(c=>{
+        // Formato numérico cols J-R
+        ['J','K','L','M','N','O','Q','R'].forEach(c=>{
           ws.getRange(`${c}2:${c}${nRows+1}`).numberFormat=[['#,##0.00']];
         });
 
-        // Colorear filas: verde=corregido con XML, amarillo=pendiente
+        // Colorear col E: verde si corregido, amarillo si pendiente, nada si ok
         p.rowsClasif.forEach((r,i)=>{
           const fila=i+2;
           if(r.corregido){
+            ws.getRange(`E${fila}`).format.fill.color='#dcfce7';
+            ws.getRange(`E${fila}`).format.font.color='#15803d';
+            ws.getRange(`E${fila}`).format.font.bold=true;
             ws.getRange(`A${fila}:${colL(nCols)}${fila}`).format.fill.color='#f0fdf4';
-            ws.getRange(`S${fila}`).format.font.color='#15803d';
-            ws.getRange(`S${fila}`).format.font.bold=true;
-          } else if(r.alerta && r.alerta!=='sin datos' && r.alerta!=='propina/ICE: no declara en IVA'){
+          } else if(r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'){
+            ws.getRange(`E${fila}`).format.fill.color='#fef9c3';
+            ws.getRange(`E${fila}`).format.font.color='#854d0e';
             ws.getRange(`A${fila}:${colL(nCols)}${fila}`).format.fill.color='#fffbeb';
           }
         });
@@ -1289,11 +1293,12 @@ async function exportTXT(p,hoja){
         const tf=nRows+3;
         ws.getRange(`A${tf}`).values=[['TOTALES']];
         ws.getRange(`A${tf}`).format.font.bold=true;
-        ws.getRange(`A${tf}`).format.fill.color='#f0fdf4';
-        ['I','J','K','L','M','N','O','Q','R'].forEach(c=>{
+        ws.getRange(`A${tf}`).format.fill.color='#e8f4fd';
+        ['J','K','L','M','N','O','Q','R'].forEach(c=>{
           ws.getRange(`${c}${tf}`).formulas=[[`=SUM(${c}2:${c}${nRows+1})`]];
           ws.getRange(`${c}${tf}`).format.font.bold=true;
-          ws.getRange(`${c}${tf}`).format.fill.color='#f0fdf4';
+          ws.getRange(`${c}${tf}`).format.fill.color='#e8f4fd';
+          ws.getRange(`${c}${tf}`).format.font.color='#258dd6';
         });
 
         ws.getUsedRange().format.autofitColumns();
