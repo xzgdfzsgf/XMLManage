@@ -1332,56 +1332,133 @@ ${htmlContenido}
 }
 
 function generarHTMLFacturaIndividual(r) {
-  const fuenteXML = r.corregido ? `<span class="badge-xml">✓ Corregido con XML</span>` : `<span class="badge-warn">⚠ Estimado (sin XML)</span>`;
+  // Buscar el XML completo en el pool para tener detalles de productos
+  const xmlData = xmlPool[r.SERIE_COMPROBANTE] || xmlPool[r.CLAVE_ACCESO] || null;
+  const det = xmlData?.det || [];
+  const pag = xmlData?.pag || [];
+  const it  = xmlData?.it  || {};
+  const s   = xmlData?.subtotales || {};
+
+  const tieneXML = !!xmlData;
+  const ambiente = it.ambiente || (r.CLAVE_ACCESO?.charAt(23)==='1'?'PRUEBAS':'PRODUCCIÓN');
+  const numAut   = r.CLAVE_ACCESO || '—';
+
+  // Datos del emisor — del XML si existe, del TXT si no
+  const rucEmisor    = it.ruc || r.RUC_EMISOR || '—';
+  const rsEmisor     = it.razonSocial || r.RAZON_SOCIAL_EMISOR || '—';
+  const nomComercial = it.nombreComercial || rsEmisor;
+  const dirMatriz    = it.dirMatriz || '—';
+  const serie        = r.SERIE_COMPROBANTE || '—';
+  const fechaEmision = r.FECHA_EMISION || xmlData?.id?.fechaEmision || '—';
+  const idReceptor   = r.IDENTIFICACION_RECEPTOR || xmlData?.id?.idComp || '—';
+  const rsReceptor   = xmlData?.id?.rsComp || '—';
+
+  // Subtotales — del XML si está corregido, del TXT calculado si no
+  const sub15   = tieneXML ? (s.sub15||0) : r.baseGravada;
+  const sub0    = tieneXML ? (s.sub0||0)  : r.base0;
+  const subExe  = tieneXML ? (s.subExento||0) : r.baseExenta||0;
+  const subNO   = tieneXML ? (s.subNoObj||0)  : r.baseNoObje||0;
+  const subSin  = sub15 + sub0 + subExe + subNO;
+  const iva     = r.iva;
+  const propina = r.propina||0;
+  const ice     = r.ice||0;
+  const total   = r.total;
+
   return `
-  <div class="fact-hdr">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start">
-      <div>
-        <div class="fact-tipo">${r.TIPO_COMPROBANTE||'Factura'}</div>
-        <div class="fact-serie">${r.SERIE_COMPROBANTE||''}</div>
-        <div class="fact-ruc">${r.RAZON_SOCIAL_EMISOR||''} · RUC: ${r.RUC_EMISOR||''}</div>
-      </div>
-      <div style="text-align:right">
-        ${fuenteXML}
-        <div class="fact-total" style="margin-top:8px">$${r.total.toFixed(2)}</div>
+  <!-- CABECERA FACTURA estilo SRI -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px;border:1px solid #d1d5db;border-radius:4px;overflow:hidden">
+    <!-- Izquierda: datos del emisor -->
+    <div style="padding:12px;background:#f8fafc;border-right:1px solid #e5e7eb">
+      <div style="font-size:18px;font-weight:900;color:#1e3a5f;margin-bottom:6px">${rsEmisor}</div>
+      ${nomComercial !== rsEmisor ? `<div style="font-size:11px;color:#374151;margin-bottom:4px">${nomComercial}</div>` : ''}
+      <div style="font-size:10px;color:#6b7280">R.U.C.: <strong>${rucEmisor}</strong></div>
+      <div style="font-size:10px;color:#6b7280;margin-top:2px">Dirección Matriz: ${dirMatriz}</div>
+      <div style="font-size:10px;color:#6b7280;margin-top:6px">OBLIGADO A LLEVAR CONTABILIDAD: SI</div>
+    </div>
+    <!-- Derecha: datos del comprobante -->
+    <div style="padding:12px">
+      <div style="font-size:15px;font-weight:800;color:#1e3a5f;margin-bottom:4px">FACTURA</div>
+      <div style="font-size:11px;margin-bottom:3px">No. <strong>${serie}</strong></div>
+      <div style="font-size:10px;color:#6b7280;margin-bottom:2px">NÚMERO DE AUTORIZACIÓN</div>
+      <div style="font-family:monospace;font-size:9px;word-break:break-all;color:#374151;margin-bottom:6px">${numAut}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:10px">
+        <div><span style="color:#9ca3af">AMBIENTE:</span> <strong>${ambiente}</strong></div>
+        <div><span style="color:#9ca3af">EMISIÓN:</span> <strong>NORMAL</strong></div>
+        <div><span style="color:#9ca3af">FECHA:</span> <strong>${fechaEmision}</strong></div>
       </div>
     </div>
   </div>
 
-  <div class="grid2">
-    <div class="grid2-box">
-      <div class="label">Emisor</div>
-      <div style="font-weight:700">${r.RAZON_SOCIAL_EMISOR||'—'}</div>
-      <div style="font-family:monospace;font-size:10px;color:#6b7280">RUC: ${r.RUC_EMISOR||'—'}</div>
-    </div>
-    <div class="grid2-box">
-      <div class="label">Receptor</div>
-      <div style="font-family:monospace">${r.IDENTIFICACION_RECEPTOR||'—'}</div>
-      <div style="font-size:10px;color:#6b7280">Fecha: ${r.FECHA_EMISION||'—'}</div>
-    </div>
+  <!-- DATOS DEL RECEPTOR -->
+  <div style="border:1px solid #d1d5db;border-radius:4px;padding:8px 12px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:10px">
+    <div><span style="color:#9ca3af">Razón Social:</span><br><strong>${rsReceptor}</strong></div>
+    <div><span style="color:#9ca3af">Identificación:</span><br><strong>${idReceptor}</strong></div>
+    <div><span style="color:#9ca3af">Fecha Emisión:</span><br><strong>${fechaEmision}</strong></div>
   </div>
 
-  <table>
-    <tr><th>Concepto</th><th style="text-align:right">Valor</th><th>Casillero 104A</th></tr>
-    <tr><td><strong>BASE GRAVADA</strong> (tarifa 15%/8%/5%)</td><td class="num green">$${r.baseGravada.toFixed(2)}</td><td style="font-size:10px;color:#15803d">→ 500</td></tr>
-    ${r.base0>0?`<tr><td>BASE 0%</td><td class="num">$${r.base0.toFixed(2)}</td><td style="font-size:10px;color:#6b7280">→ 507</td></tr>`:''}
-    ${r.baseExenta>0?`<tr><td>BASE EXENTA</td><td class="num">$${r.baseExenta.toFixed(2)}</td><td style="font-size:10px;color:#7e22ce">→ 510</td></tr>`:''}
-    ${r.baseNoObje>0?`<tr><td>BASE NO OBJETO</td><td class="num">$${r.baseNoObje.toFixed(2)}</td><td style="font-size:10px;color:#7e22ce">→ 509</td></tr>`:''}
-    <tr><td><strong>IVA</strong></td><td class="num red">$${r.iva.toFixed(2)}</td><td style="font-size:10px;color:#dc2626">→ 501/601</td></tr>
-    ${r.propina>0?`<tr><td>PROPINA <span style="font-size:9px;color:#9ca3af">(no declara en IVA)</span></td><td class="num orange">$${r.propina.toFixed(2)}</td><td style="font-size:10px;color:#9ca3af">—</td></tr>`:''}
-    ${r.ice>0?`<tr><td>ICE <span style="font-size:9px;color:#9ca3af">(no declara en IVA)</span></td><td class="num purple">$${r.ice.toFixed(2)}</td><td style="font-size:10px;color:#9ca3af">—</td></tr>`:''}
-    <tr class="total-row"><td><strong>IMPORTE TOTAL</strong></td><td class="num"><strong>$${r.total.toFixed(2)}</strong></td><td></td></tr>
-  </table>
+  <!-- DETALLE DE PRODUCTOS (solo si hay XML con detalles) -->
+  ${det.length > 0 ? `
+  <table style="margin-bottom:14px">
+    <thead>
+      <tr>
+        <th>Cód. Principal</th>
+        <th>Cant.</th>
+        <th>Descripción</th>
+        <th style="text-align:right">P. Unitario</th>
+        <th style="text-align:right">Descuento</th>
+        <th style="text-align:right">Precio Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${det.map((d,i)=>`<tr${i%2?' style="background:#f9fafb"':''}>
+        <td style="font-family:monospace;font-size:9px">${d.cod||''}</td>
+        <td class="num">${d.cant||''}</td>
+        <td>${d.desc||''}</td>
+        <td class="num">$${d.pu||'0.00'}</td>
+        <td class="num" style="color:#dc2626">${parseFloat(d.desc2||0)>0?'$'+d.desc2:''}</td>
+        <td class="num"><strong>$${d.sub||'0.00'}</strong></td>
+      </tr>`).join('')}
+    </tbody>
+  </table>` : `
+  <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:8px 12px;margin-bottom:14px;font-size:10px;color:#92400e">
+    📄 Detalle de productos no disponible — carga el XML de esta factura para ver el desglose completo.
+  </div>`}
 
-  ${r.corregido
-    ? `<div class="nota-verde">✅ <strong>Datos verificados con XML.</strong> Las bases son exactas según el comprobante electrónico del SRI.</div>`
-    : `<div class="nota">⚠️ <strong>Datos estimados (sin XML cargado).</strong> La separación de bases es aproximada. Carga el XML en la pestaña 🔧 Corregir para obtener valores exactos.</div>`
-  }
+  <!-- SUBTOTALES Y TOTALES (lado derecho como en el PDF original) -->
+  <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+    <table style="width:50%;min-width:260px">
+      ${sub15>0?`<tr><td style="color:#6b7280">SUBTOTAL 15%</td><td class="num green"><strong>$${sub15.toFixed(2)}</strong></td></tr>`:''}
+      ${sub0>0?`<tr><td style="color:#6b7280">SUBTOTAL 0%</td><td class="num">$${sub0.toFixed(2)}</td></tr>`:''}
+      ${subExe>0?`<tr><td style="color:#6b7280">SUBTOTAL EXENTO DE IVA</td><td class="num">$${subExe.toFixed(2)}</td></tr>`:''}
+      ${subNO>0?`<tr><td style="color:#6b7280">SUBTOTAL NO OBJETO DE IVA</td><td class="num">$${subNO.toFixed(2)}</td></tr>`:''}
+      <tr><td style="color:#6b7280">SUBTOTAL SIN IMPUESTOS</td><td class="num">$${subSin.toFixed(2)}</td></tr>
+      ${ice>0?`<tr><td style="color:#6b7280">ICE</td><td class="num" style="color:#7e22ce">$${ice.toFixed(2)}</td></tr>`:''}
+      <tr><td style="color:#dc2626;font-weight:700">IVA</td><td class="num red"><strong>$${iva.toFixed(2)}</strong></td></tr>
+      ${propina>0?`<tr><td style="color:#c2410c">PROPINA</td><td class="num orange">$${propina.toFixed(2)}</td></tr>`:''}
+      <tr style="border-top:2px solid #1e3a5f"><td style="font-weight:800;font-size:12px">VALOR TOTAL</td><td class="num" style="font-weight:800;font-size:14px;color:#15803d">$${total.toFixed(2)}</td></tr>
+    </table>
+  </div>
 
-  <div class="nota-azul" style="font-size:10px">
-    <strong>Clave de acceso:</strong><br>
-    <span style="font-family:monospace;word-break:break-all">${r.CLAVE_ACCESO||'—'}</span>
-  </div>`;
+  <!-- FORMA DE PAGO (si hay XML) -->
+  ${pag.length > 0 ? `
+  <div style="font-size:10px;margin-bottom:14px">
+    <strong>Forma de pago:</strong>
+    ${pag.map(p=>`<span style="background:#f3f4f6;border-radius:3px;padding:2px 8px;margin-left:6px">${p.forma} — $${p.total}</span>`).join('')}
+  </div>` : ''}
+
+  <!-- CASILLEROS 104A -->
+  <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:4px;padding:8px 12px;margin-bottom:10px;font-size:10px">
+    <strong style="color:#1d4ed8">Impacto en Formulario 104A:</strong>
+    <span style="margin-left:10px">500: <strong>$${r.baseGravada.toFixed(2)}</strong></span>
+    <span style="margin-left:10px">501: <strong>$${iva.toFixed(2)}</strong></span>
+    ${r.base0>0?`<span style="margin-left:10px">507: <strong>$${r.base0.toFixed(2)}</strong></span>`:''}
+  </div>
+
+  <!-- ESTADO -->
+  ${tieneXML
+    ? `<div class="nota-verde">✅ <strong>PDF generado desde XML oficial del SRI.</strong> Datos exactos del comprobante electrónico.</div>`
+    : `<div class="nota">⚠️ <strong>Sin XML cargado.</strong> Subtotales estimados. Carga el XML para ver el detalle de productos y valores exactos.</div>`
+  }`;
 }
 
 
