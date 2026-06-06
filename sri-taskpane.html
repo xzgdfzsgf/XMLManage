@@ -1054,18 +1054,29 @@ function renderTXTVista(p){
     </div>
     <div class="tbl-wrap">
       <table><thead><tr>
-        <th>Emisor</th><th>Serie</th><th>Fecha</th>
+        <th>Emisor</th>
+        <th>Serie · PDF</th>
+        <th>Fecha</th>
         <th style="text-align:right">Base Grav.</th>
         <th style="text-align:right">Base 0%</th>
         <th style="text-align:right">IVA</th>
         <th style="text-align:right">Propina</th>
         <th style="text-align:right">ICE</th>
         <th style="text-align:right">Total</th>
-        <th style="text-align:center;background:#1a6fb0">🖨️ PDF</th>
       </tr></thead>
       <tbody>${rowsClasif.slice(0,150).map((r,idx)=>`<tr style="${r.corregido?'background:#f0fdf4':r.alerta&&!r.corregido&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'?'background:#fffbeb':''}">
         <td style="max-width:90px;overflow:hidden;text-overflow:ellipsis;font-size:10px">${r.RAZON_SOCIAL_EMISOR||''}</td>
-        <td style="font-family:monospace;font-size:9px">${r.SERIE_COMPROBANTE||''}</td>
+        <td style="font-size:9px;white-space:nowrap">
+          <div style="font-family:monospace">${r.SERIE_COMPROBANTE||''}</div>
+          <div style="margin-top:3px;display:flex;gap:4px;align-items:center">
+            ${r.corregido
+              ? '<button onclick="imprimirPDFFactura('+idx+')" style="background:#258dd6;color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:600">🖨️ PDF</button>'
+              : (r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'
+                ? '<button onclick="imprimirPDFFactura('+idx+')" style="background:#f3f4f6;color:#6b7280;border:1px solid #d1d5db;border-radius:4px;padding:2px 8px;font-size:9px;cursor:pointer">🖨️ PDF</button><span onclick="goTab(\'fix\')" style="color:#c2410c;font-size:10px;cursor:pointer" title="'+r.alerta+'">⚠️</span>'
+                : '<button onclick="imprimirPDFFactura('+idx+')" style="background:#f3f4f6;color:#6b7280;border:1px solid #d1d5db;border-radius:4px;padding:2px 8px;font-size:9px;cursor:pointer">🖨️ PDF</button>')
+            }
+          </div>
+        </td>
         <td style="font-size:10px">${r.FECHA_EMISION||''}</td>
         <td class="td-num td-green">${r.baseGravada>0?'$'+r.baseGravada.toFixed(2):''}</td>
         <td class="td-num">${r.base0>0?'$'+r.base0.toFixed(2):''}</td>
@@ -1073,14 +1084,6 @@ function renderTXTVista(p){
         <td class="td-num" style="color:#c2410c">${r.propina>0?'$'+r.propina.toFixed(2):''}</td>
         <td class="td-num" style="color:#7e22ce">${r.ice>0?'$'+r.ice.toFixed(2):''}</td>
         <td class="td-num" style="font-weight:700">$${r.total.toFixed(2)}</td>
-        <td style="text-align:center;padding:3px">
-          ${r.corregido
-            ? '<button onclick="imprimirPDFFactura('+idx+')" title="PDF con datos exactos del XML" style="background:#15803d;color:#fff;border:none;border-radius:4px;padding:2px 7px;font-size:10px;cursor:pointer">🖨️</button>'
-            : (r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'
-              ? '<span style="font-size:12px;cursor:pointer" onclick="goTab(\'fix\')" title="'+r.alerta+'">⚠️</span>'
-              : '<button onclick="imprimirPDFFactura('+idx+')" title="PDF de esta factura" style="background:#e2e8f0;color:#475569;border:none;border-radius:4px;padding:2px 7px;font-size:10px;cursor:pointer">🖨️</button>')
-          }
-        </td>
       </tr>`).join('')}</tbody></table>
     </div>
     ${nFilas>150?`<div style="padding:5px 10px;font-size:10px;color:#9ca3af">Mostrando 150/${nFilas}. Se exportan todos.</div>`:''}
@@ -1199,38 +1202,36 @@ async function exportTXT(p,hoja){
         const useFml=document.getElementById('chkFormula')?.checked!==false;
         const nRows=p.rowsClasif.length;
 
-        // 19 columnas — CORREGIDO_XML junto a SERIE para visibilidad inmediata
+        // 19 columnas — orden original, CORREGIDO_XML al final
         const hdrs=[
           'RUC_EMISOR',           // A
           'RAZON_SOCIAL_EMISOR',  // B
           'TIPO_COMPROBANTE',     // C
           'SERIE_COMPROBANTE',    // D
-          'CORREGIDO_XML',        // E ← movido aquí para ver de inmediato
-          'CLAVE_ACCESO',         // F
-          'FECHA_AUTORIZACION',   // G
-          'FECHA_EMISION',        // H
-          'IDENTIFICACION_RECEPTOR', // I
-          'SUBTOTAL_SIN_IMPTOS',  // J
-          'BASE_EXENTA',          // K
-          'BASE_NO_OBJETO',       // L
-          'BASE_0%',              // M
-          'BASE_GRAVADA',         // N
-          'IVA',                  // O
-          'IMPORTE_TOTAL',        // P
-          'PROPINA',              // Q
-          'ICE',                  // R
-          'NUM_DOC_MODIFICADO',   // S
+          'CLAVE_ACCESO',         // E
+          'FECHA_AUTORIZACION',   // F
+          'FECHA_EMISION',        // G
+          'IDENTIFICACION_RECEPTOR', // H
+          'SUBTOTAL_SIN_IMPTOS',  // I
+          'BASE_EXENTA',          // J
+          'BASE_NO_OBJETO',       // K
+          'BASE_0%',              // L
+          'BASE_GRAVADA',         // M
+          'IVA',                  // N
+          'IMPORTE_TOTAL',        // O
+          'PROPINA',              // P
+          'ICE',                  // Q
+          'NUM_DOC_MODIFICADO',   // R
+          'CORREGIDO_XML',        // S
         ];
         const nCols=hdrs.length;
         ws.getRange(`A1:${colL(nCols)}1`).values=[hdrs];
         ws.getRange(`A1:${colL(nCols)}1`).format.fill.color='#258dd6';
         ws.getRange(`A1:${colL(nCols)}1`).format.font.color='#ffffff';
         ws.getRange(`A1:${colL(nCols)}1`).format.font.bold=true;
-        // Col E (CORREGIDO_XML) — color especial para destacar
-        ws.getRange(`E1`).format.fill.color='#1a6fb0';
 
-        // Columnas texto — forzar formato @
-        ['A','D','F','I','S'].forEach(c=>{
+        // Columnas texto
+        ['A','D','E','H','R'].forEach(c=>{
           ws.getRange(`${c}2:${c}${nRows+1}`).numberFormat=[['@']];
         });
         await ctx.sync();
@@ -1240,61 +1241,58 @@ async function exportTXT(p,hoja){
           r.RAZON_SOCIAL_EMISOR||'',             // B
           r.TIPO_COMPROBANTE||'',                // C
           String(r.SERIE_COMPROBANTE||''),       // D
-          r.corregido?'✓ XML':'',               // E CORREGIDO_XML ← junto a serie
-          String(r.CLAVE_ACCESO||''),            // F
-          r.FECHA_AUTORIZACION||'',              // G
-          r.FECHA_EMISION||'',                   // H
-          String(r.IDENTIFICACION_RECEPTOR||''), // I
-          r.valSin||0,                           // J SUBTOTAL_SIN_IMPTOS
-          r.baseExenta||'',                      // K BASE_EXENTA
-          r.baseNoObje||'',                      // L BASE_NO_OBJETO
-          r.base0||'',                           // M BASE_0%
-          r.iva>0?r.baseGravada:'',              // N BASE_GRAVADA
-          r.iva,                                 // O IVA
-          r.total,                               // P IMPORTE_TOTAL
-          r.propina||'',                         // Q PROPINA
-          r.ice||'',                             // R ICE
-          String(r.NUMERO_DOCUMENTO_MODIFICADO||''), // S
+          String(r.CLAVE_ACCESO||''),            // E
+          r.FECHA_AUTORIZACION||'',              // F
+          r.FECHA_EMISION||'',                   // G
+          String(r.IDENTIFICACION_RECEPTOR||''), // H
+          r.valSin||0,                           // I
+          r.baseExenta||'',                      // J
+          r.baseNoObje||'',                      // K
+          r.base0||'',                           // L
+          r.iva>0?r.baseGravada:'',              // M
+          r.iva,                                 // N
+          r.total,                               // O
+          r.propina||'',                         // P
+          r.ice||'',                             // Q
+          String(r.NUMERO_DOCUMENTO_MODIFICADO||''), // R
+          r.corregido?'✓ XML':'',               // S
         ]);
         ws.getRange(`A2:${colL(nCols)}${nRows+1}`).values=bloque;
         await ctx.sync();
 
-        // Fórmula BASE_GRAVADA en col N
+        // Fórmula BASE_GRAVADA col M
         if(useFml){
           const fmlaM=p.rowsClasif.map((r,i)=>{
             if(r.corregido) return [r.baseGravada||''];
-            return [r.iva>0?`=O${i+2}/0.15`:r.baseGravada||''];
+            return [r.iva>0?`=N${i+2}/0.15`:r.baseGravada||''];
           });
-          ws.getRange(`N2:N${nRows+1}`).formulas=fmlaM;
+          ws.getRange(`M2:M${nRows+1}`).formulas=fmlaM;
           await ctx.sync();
         }
 
-        // Formato numérico cols J-R
-        ['J','K','L','M','N','O','Q','R'].forEach(c=>{
+        // Formato numérico
+        ['I','J','K','L','M','N','O','P','Q'].forEach(c=>{
           ws.getRange(`${c}2:${c}${nRows+1}`).numberFormat=[['#,##0.00']];
         });
 
-        // Colorear col E: verde si corregido, amarillo si pendiente, nada si ok
+        // Colorear filas y col S
         p.rowsClasif.forEach((r,i)=>{
           const fila=i+2;
           if(r.corregido){
-            ws.getRange(`E${fila}`).format.fill.color='#dcfce7';
-            ws.getRange(`E${fila}`).format.font.color='#15803d';
-            ws.getRange(`E${fila}`).format.font.bold=true;
             ws.getRange(`A${fila}:${colL(nCols)}${fila}`).format.fill.color='#f0fdf4';
+            ws.getRange(`S${fila}`).format.font.color='#15803d';
+            ws.getRange(`S${fila}`).format.font.bold=true;
           } else if(r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'){
-            ws.getRange(`E${fila}`).format.fill.color='#fef9c3';
-            ws.getRange(`E${fila}`).format.font.color='#854d0e';
             ws.getRange(`A${fila}:${colL(nCols)}${fila}`).format.fill.color='#fffbeb';
           }
         });
 
-        // Fila TOTALES
+        // Totales
         const tf=nRows+3;
         ws.getRange(`A${tf}`).values=[['TOTALES']];
         ws.getRange(`A${tf}`).format.font.bold=true;
         ws.getRange(`A${tf}`).format.fill.color='#e8f4fd';
-        ['J','K','L','M','N','O','Q','R'].forEach(c=>{
+        ['I','J','K','L','M','N','O','P','Q'].forEach(c=>{
           ws.getRange(`${c}${tf}`).formulas=[[`=SUM(${c}2:${c}${nRows+1})`]];
           ws.getRange(`${c}${tf}`).format.font.bold=true;
           ws.getRange(`${c}${tf}`).format.fill.color='#e8f4fd';
