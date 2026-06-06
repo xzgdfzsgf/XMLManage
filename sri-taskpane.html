@@ -285,7 +285,18 @@ input[type=checkbox]{width:14px;height:14px;accent-color:var(--heka-blue)}
       <label class="check"><input type="checkbox" id="chkPropina" checked> Columna PROPINA (col Q)</label>
     </div>
     <div class="card">
-      <div class="card-title">📄 Exportar archivo activo</div>
+      <div class="card-title">🖨️ Generar PDFs de facturas</div>
+      <p style="font-size:11px;color:#6b7280;margin-bottom:8px">
+        Genera el PDF de cada factura individual desde la tabla de Vista.<br>
+        Las facturas con XML cargado incluyen el detalle completo de productos.
+      </p>
+      <button class="btn btn-heka btn-full" onclick="goTab('vista');mostrarAyudaPDF()">
+        🖨️ Ir a Vista → PDF por factura
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📊 Exportar archivo activo</div>
       <p style="font-size:11px;color:#6b7280;margin-bottom:8px" id="excelFileLabel">Ningún archivo seleccionado</p>
       <button class="btn btn-success btn-full" onclick="exportarActivo()">📊 Exportar → hoja de Excel</button>
     </div>
@@ -620,7 +631,7 @@ function renderFileList(){
     const berr=a.error?'<span class="badge badge-red">ERR</span>':'';
     return `<div class="file-item ${a.id===activoId?'active':''}" onclick="selFile(${a.id})">
       <div class="file-name">${a.nombre}</div>
-      <div style="display:flex;gap:4px;margin-top:3px">${b1}${b2}${bwarn}${berr}</div>
+      <div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap">${b1}${b2}${bwarn}${berr}</div>
       <div class="file-meta">${(a.size/1024).toFixed(1)} KB</div>
     </div>`;
   }).join('')+`<div style="padding:8px"><button class="btn btn-danger btn-sm btn-full" onclick="clearAll()">🗑 Limpiar todo</button></div>`;
@@ -940,17 +951,27 @@ function renderFixPanel(){
   }
 
   if(resueltas.length>0){
-    html+=`<div style="font-size:11px;font-weight:700;color:#374151;margin:12px 0 8px">✅ Facturas ya corregidas con XML:</div>`;
-    resueltas.forEach(r=>{
+    html+=`<div style="font-size:11px;font-weight:700;color:#374151;margin:12px 0 8px">✅ Facturas corregidas con XML (${resueltas.length}):</div>`;
+    resueltas.forEach((r,i)=>{
+      // Buscar el índice real en rowsClasif
+      const idxReal = a.parsed.rowsClasif.findIndex(x=>x.SERIE_COMPROBANTE===r.SERIE_COMPROBANTE);
       html+=`<div class="fix-item resuelto">
-        <div class="fix-title resuelto">✅ ${r.RAZON_SOCIAL_EMISOR||'Sin nombre'}</div>
-        <div class="fix-sub">Serie: <strong>${r.SERIE_COMPROBANTE||'—'}</strong> · Fuente: XML ${r.fuenteXML||''}</div>
-        <div class="fix-valores">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div class="fix-title resuelto">✅ ${r.RAZON_SOCIAL_EMISOR||'Sin nombre'}</div>
+            <div class="fix-sub">Serie: <strong>${r.SERIE_COMPROBANTE||'—'}</strong> · Fuente: XML exacto</div>
+          </div>
+          <button onclick="imprimirPDFFactura(${idxReal})"
+            style="background:#258dd6;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-weight:600;white-space:nowrap;flex-shrink:0">
+            🖨️ PDF
+          </button>
+        </div>
+        <div class="fix-valores" style="margin-top:8px">
           <div class="fix-val"><div class="fix-val-label">BASE GRAVADA</div><div class="fix-val-num" style="color:#15803d">$${r.baseGravada.toFixed(2)}</div></div>
           <div class="fix-val"><div class="fix-val-label">BASE 0%</div><div class="fix-val-num" style="color:#6b7280">$${r.base0.toFixed(2)}</div></div>
           <div class="fix-val"><div class="fix-val-label">IVA</div><div class="fix-val-num" style="color:#dc2626">$${r.iva.toFixed(2)}</div></div>
         </div>
-        ${r.propina>0?`<div style="font-size:10px;color:#c2410c">Propina exacta del XML: $${r.propina.toFixed(2)}</div>`:''}
+        ${r.propina>0?`<div style="font-size:10px;color:#c2410c">Propina: $${r.propina.toFixed(2)}</div>`:''}
         ${r.baseExenta>0?`<div style="font-size:10px;color:#7e22ce">Base exenta: $${r.baseExenta.toFixed(2)}</div>`:''}
         ${r.baseNoObje>0?`<div style="font-size:10px;color:#c2410c">Base no objeto: $${r.baseNoObje.toFixed(2)}</div>`:''}
       </div>`;
@@ -1040,7 +1061,7 @@ function renderTXTVista(p){
         <th style="text-align:right">Propina</th>
         <th style="text-align:right">ICE</th>
         <th style="text-align:right">Total</th>
-        <th style="text-align:center">PDF</th>
+        <th style="text-align:center;background:#1a6fb0">🖨️ PDF</th>
       </tr></thead>
       <tbody>${rowsClasif.slice(0,150).map((r,idx)=>`<tr style="${r.corregido?'background:#f0fdf4':r.alerta&&!r.corregido&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'?'background:#fffbeb':''}">
         <td style="max-width:90px;overflow:hidden;text-overflow:ellipsis;font-size:10px">${r.RAZON_SOCIAL_EMISOR||''}</td>
@@ -1359,11 +1380,19 @@ function imprimirPDF(modo) {
 }
 
 // PDF de una factura individual desde la tabla
+function mostrarAyudaPDF(){
+  showToast('Toca el botón 🖨️ de cualquier fila de la tabla para generar su PDF', 'info');
+}
+
 function imprimirPDFFactura(idx) {
+  // Buscar en archivos activo (TXT o virtual XML)
   const a = archivos.find(x=>x.id===activoId);
-  if (!a?.parsed?.rowsClasif) return;
+  if (!a?.parsed?.rowsClasif) {
+    showToast('Selecciona un archivo primero','warn');
+    return;
+  }
   const r = a.parsed.rowsClasif[idx];
-  if (!r) return;
+  if (!r) { showToast('Factura no encontrada','warn'); return; }
   const titulo = `Factura ${r.SERIE_COMPROBANTE||''} — ${r.RAZON_SOCIAL_EMISOR||''}`;
   const html = generarHTMLFacturaIndividual(r);
   abrirVentanaPDF(titulo, html);
