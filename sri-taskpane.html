@@ -178,11 +178,12 @@ input[type=checkbox]{width:14px;height:14px;accent-color:var(--heka-blue)}
 </div>
 
 <div class="tabs">
-  <button class="tab active" onclick="goTab('cargar')" id="tab-cargar">📂 Cargar</button>
-  <button class="tab" onclick="goTab('vista')" id="tab-vista">🔍 Vista</button>
-  <button class="tab" onclick="goTab('fix')" id="tab-fix">🔧 Corregir</button>
-  <button class="tab" onclick="goTab('f104')" id="tab-f104">🧾 104A</button>
-  <button class="tab" onclick="goTab('excel')" id="tab-excel">📊 Excel</button>
+  <button class="tab active" onclick="goTab('cargar')" id="tab-cargar">📂</button>
+  <button class="tab" onclick="goTab('vista')" id="tab-vista">🔍</button>
+  <button class="tab" onclick="goTab('fix')" id="tab-fix">🔧</button>
+  <button class="tab" onclick="goTab('f104')" id="tab-f104">🧾</button>
+  <button class="tab" onclick="goTab('meses')" id="tab-meses">📅</button>
+  <button class="tab" onclick="goTab('excel')" id="tab-excel">📊</button>
 </div>
 
 <div class="progress" id="progress">⏳ Procesando...</div>
@@ -231,13 +232,20 @@ input[type=checkbox]{width:14px;height:14px;accent-color:var(--heka-blue)}
 
 <!-- ══ VISTA ══ -->
 <div class="panel" id="panel-vista">
-  <div class="toolbar">
+  <div class="toolbar" style="flex-wrap:wrap;gap:5px">
     <button class="btn btn-outline btn-sm" onclick="goTab('cargar')">← Volver</button>
     <div id="vistaBadges" style="display:flex;gap:4px;align-items:center"></div>
-    <div style="flex:1"></div>
-    <button class="btn btn-warn btn-sm" id="btnFixTab" onclick="goTab('fix')" style="display:none">🔧 Corregir</button>
-    <button class="btn btn-outline btn-sm" onclick="imprimirPDF()" title="Exportar PDF">🖨️ PDF</button>
-    <button class="btn btn-success btn-sm" onclick="exportarActivo()">📊 → Excel</button>
+    <input id="buscador" type="text" placeholder="🔍 Buscar emisor, serie, RUC..." 
+      style="flex:1;min-width:120px;border:1.5px solid var(--heka-border);border-radius:6px;padding:5px 9px;font-size:11px;font-family:inherit;outline:none"
+      oninput="onBuscar(this.value)">
+    <div style="display:flex;gap:4px;flex-wrap:wrap">
+      <button class="btn btn-sm" id="filtroIVA" onclick="toggleFiltro('soloConIVA')" style="background:#f3f4f6;border:1px solid #d1d5db;font-size:10px">Con IVA</button>
+      <button class="btn btn-sm" id="filtroBase0" onclick="toggleFiltro('soloBase0')" style="background:#f3f4f6;border:1px solid #d1d5db;font-size:10px">Solo 0%</button>
+      <button class="btn btn-sm" id="filtroXML" onclick="toggleFiltro('soloCorregidos')" style="background:#f3f4f6;border:1px solid #d1d5db;font-size:10px">✓ XML</button>
+    </div>
+    <button class="btn btn-warn btn-sm" id="btnFixTab" onclick="goTab('fix')" style="display:none">🔧</button>
+    <button class="btn btn-outline btn-sm" onclick="imprimirPDF()" title="PDF resumen">🖨️</button>
+    <button class="btn btn-success btn-sm" onclick="exportarActivo()">📊</button>
   </div>
   <div class="content" id="vistaContent">
     <div class="empty-state"><div class="icon">📋</div><div class="title">Selecciona un archivo</div></div>
@@ -268,6 +276,21 @@ input[type=checkbox]{width:14px;height:14px;accent-color:var(--heka-blue)}
   </div>
   <div class="content" id="f104Content">
     <div class="empty-state"><div class="icon">🧾</div><div class="title">Carga un TXT del SRI primero</div></div>
+  </div>
+</div>
+
+<!-- ══ MESES / HISTÓRICO ══ -->
+<div class="panel" id="panel-meses">
+  <div class="toolbar">
+    <button class="btn btn-outline btn-sm" onclick="goTab('cargar')">← Volver</button>
+    <span style="font-size:11px;font-weight:700;color:var(--heka-text)">📅 Resumen por meses</span>
+    <div style="flex:1"></div>
+    <button class="btn btn-heka btn-sm" onclick="exportarResumenMeses()">📊 Exportar</button>
+    <button class="btn btn-outline btn-sm" onclick="imprimirPDF('meses')">🖨️ PDF</button>
+  </div>
+  <div class="content" id="mesesContent">
+    <div class="empty-state"><div class="icon">📅</div><div class="title">Carga archivos TXT de varios meses</div>
+    <div style="font-size:11px;color:#9ca3af">Cada TXT que cargues se acumula aquí para ver el comparativo mensual</div></div>
   </div>
 </div>
 
@@ -321,22 +344,23 @@ let activoId = null;
 let xmlPool = {};       // clave: SERIE_COMPROBANTE → datos parseados del XML
 let officeOK = false;
 
-if (typeof Office !== 'undefined') Office.onReady(()=>{ officeOK=true; });
+if (typeof Office !== 'undefined') Office.onReady(()=>{ officeOK=true; verificarPrimeraVez(); });
 function isOfficeReady(){ return officeOK||(typeof Excel!=='undefined')||(typeof Office!=='undefined'&&!!Office.context); }
 
 // ══════════════════════════════════════════════════════════
 // TABS
 // ══════════════════════════════════════════════════════════
 function goTab(t) {
-  ['cargar','vista','fix','f104','excel'].forEach(p=>{
-    document.getElementById('panel-'+p).classList.remove('visible');
+  ['cargar','vista','fix','f104','meses','excel'].forEach(p=>{
+    document.getElementById('panel-'+p)?.classList.remove('visible');
     document.getElementById('tab-'+p)?.classList.remove('active');
   });
-  document.getElementById('panel-'+t).classList.add('visible');
+  document.getElementById('panel-'+t)?.classList.add('visible');
   document.getElementById('tab-'+t)?.classList.add('active');
   if(t==='excel'){ const a=archivos.find(x=>x.id===activoId); document.getElementById('excelFileLabel').textContent=a?a.nombre:'Ningún archivo seleccionado'; }
   if(t==='f104') render104A();
   if(t==='fix') renderFixPanel();
+  if(t==='meses') renderMeses();
 }
 
 function actualizarBadgeFix() {
@@ -496,6 +520,8 @@ function procesarArchivo(nombre, content, size) {
   if(poolCount) poolCount.style.display = 'none';
 
   renderFileList(); renderVista(a); actualizarBadgeFix(); goTab('vista');
+  // Guardar en histórico de meses
+  if(parsed?.totales) guardarMesEnStorage(parsed, nombre);
   if(xmlAplicados > 0)
     showToast(`✅ TXT cargado · ${xmlAplicados} factura${xmlAplicados>1?'s':''} ya corregidas con XML previos`, 'success');
 }
@@ -1023,8 +1049,10 @@ function renderVista(a){
 }
 
 function renderTXTVista(p){
-  const{rowsClasif,totales,nFilas}=p;
-  const pendientes=rowsClasif.filter(r=>r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'&&!r.corregido);
+  const{rowsClasif:rowsAll,totales,nFilas}=p;
+  const rowsClasif=aplicarFiltro(rowsAll);
+  const nFilasFiltradas=rowsClasif.length;
+  const pendientes=rowsAll.filter(r=>r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'&&!r.corregido);
   const corregidas=rowsClasif.filter(r=>r.corregido);
   let html='';
 
@@ -1036,6 +1064,12 @@ function renderTXTVista(p){
     <div class="resumen-box"><div class="resumen-label">Propina/ICE (no declara)</div><div class="resumen-value" style="color:#c2410c">$${(totales.totalPropina||0).toFixed(2)}</div></div>
     <div class="resumen-box"><div class="resumen-label">Importe Total</div><div class="resumen-value" style="color:#1d4ed8">$${(totales.totalImporte||0).toFixed(2)}</div></div>
   </div>`;
+
+  // Detectar notas de crédito
+  const{tieneNC,notasCredito}=procesarNotasCredito(rowsAll);
+  if(tieneNC){
+    html+=`<div class="alert alert-info">ℹ️ <strong>${notasCredito.length} nota${notasCredito.length>1?'s':''} de crédito detectada${notasCredito.length>1?'s':''}.</strong> Restan de las bases. Se muestran en la tabla y se exportan separadas en la hoja Excel.</div>`;
+  }
 
   if(pendientes.length){
     html+=`<div class="alert alert-warn" style="cursor:pointer" onclick="goTab('fix')">
@@ -1049,7 +1083,7 @@ function renderTXTVista(p){
 
   html+=`<div class="card" style="padding:0">
     <div style="padding:8px 12px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center">
-      <span style="font-size:11px;font-weight:700">Detalle de comprobantes</span>
+      <span style="font-size:11px;font-weight:700">Detalle de comprobantes</span> <span id="filtroCount" style="font-size:10px;color:var(--heka-muted)"></span>
       <span class="badge badge-green">Portal SRI</span>
     </div>
     <div class="tbl-wrap">
@@ -1174,7 +1208,7 @@ async function exportarActivo(){
   const a=archivos.find(x=>x.id===activoId);
   if(!a?.parsed){alert('Selecciona un archivo primero');return;}
   const hoja=a.nombre.replace(/\.[^.]+$/,'').replace(/[\/\\*\[\]?:]/g,'_').substring(0,31);
-  await exportTXT(a.parsed,hoja);
+  mostrarValidacion(a.parsed, ()=>exportTXT(a.parsed,hoja));
 }
 
 async function exportarTodos(){
@@ -1725,6 +1759,21 @@ function generarHTML104A(t, archivo) {
   </div>`;
 }
 
+function onBuscar(val){
+  filtroActivo.texto=val;
+  const a=archivos.find(x=>x.id===activoId);
+  if(a) renderVista(a);
+}
+
+function toggleFiltro(tipo){
+  filtroActivo[tipo]=!filtroActivo[tipo];
+  const ids={soloConIVA:'filtroIVA',soloBase0:'filtroBase0',soloCorregidos:'filtroXML'};
+  const btn=document.getElementById(ids[tipo]);
+  if(btn){btn.style.background=filtroActivo[tipo]?'#258dd6':'#f3f4f6';btn.style.color=filtroActivo[tipo]?'#fff':'#374151';btn.style.borderColor=filtroActivo[tipo]?'#258dd6':'#d1d5db';}
+  const a=archivos.find(x=>x.id===activoId);
+  if(a) renderVista(a);
+}
+
 function colL(n){let s='';while(n>0){const r=(n-1)%26;s=String.fromCharCode(65+r)+s;n=Math.floor((n-1)/26);}return s;}
 function showMsg(msg,tipo){const el=document.getElementById('excelMsg');el.style.display='block';el.className='alert alert-'+tipo;el.textContent=msg;}
 function showProgress(v){document.getElementById('progress').style.display=v?'block':'none';}
@@ -1732,11 +1781,269 @@ function showProgress(v){document.getElementById('progress').style.display=v?'bl
 function showToast(msg,tipo){
   const t=document.createElement('div');
   t.style.cssText=`position:fixed;bottom:14px;left:50%;transform:translateX(-50%);padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;z-index:9999;max-width:90%;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.2);`;
-  t.style.background=tipo==='success'?'#15803d':tipo==='error'?'#dc2626':tipo==='warn'?'#d97706':'#1d4ed8';
+  t.style.background=tipo==='success'?'#15803d':tipo==='error'?'#dc2626':tipo==='warn'?'#d97706':'#258dd6';
   t.style.color='#fff'; t.textContent=msg;
   document.body.appendChild(t);
   setTimeout(()=>t.remove(),3500);
 }
+
+// ══════════════════════════════════════════════════════════
+// STORAGE — guardar/recuperar datos entre sesiones
+// ══════════════════════════════════════════════════════════
+const STORAGE_KEY='heka_sri_meses';
+const MESES_ES=['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function extraerMesKey(parsed,nombre){
+  const m=(nombre||'').match(/(\d{4})[_\-\.](\d{2})/) || (nombre||'').match(/(\d{2})[_\-\.](\d{4})/);
+  if(m) return m[1].length===4?`${m[1]}-${m[2].padStart(2,'0')}`:`${m[2]}-${m[1].padStart(2,'0')}`;
+  const fechas=(parsed.rowsClasif||[]).map(r=>r.FECHA_EMISION).filter(Boolean);
+  if(fechas.length){
+    const parts=fechas[0].split('/');
+    if(parts.length===3) return `${parts[2]}-${parts[1].padStart(2,'0')}`;
+  }
+  return null;
+}
+
+function guardarMesEnStorage(parsed,nombre){
+  try{
+    const stored=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');
+    const mesKey=extraerMesKey(parsed,nombre);
+    if(!mesKey) return;
+    stored[mesKey]={
+      nombre,mesKey,fecha:new Date().toISOString(),
+      resumen:{
+        c500:parsed.totales?.c500||0, c501:parsed.totales?.c501||0,
+        c507:parsed.totales?.c507||0, c509:parsed.totales?.c509||0,
+        c510:parsed.totales?.c510||0, c601:parsed.totales?.c601||0,
+        totalPropina:parsed.totales?.totalPropina||0,
+        totalImporte:parsed.totales?.totalImporte||0,
+        nFilas:parsed.nFilas||0,
+        nCorregidos:parsed.rowsClasif?.filter(r=>r.corregido).length||0,
+        nPendientes:parsed.rowsClasif?.filter(r=>r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'&&!r.corregido).length||0,
+      }
+    };
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(stored));
+    renderMeses();
+  }catch(e){console.error('Storage:',e);}
+}
+
+function cargarHistorico(){
+  try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');}catch(e){return {};}
+}
+
+function limpiarHistorico(){
+  if(confirm('¿Limpiar todo el histórico de meses guardados?')){
+    localStorage.removeItem(STORAGE_KEY);
+    renderMeses();
+    showToast('Histórico limpiado','success');
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// PANEL MESES — comparativo mensual
+// ══════════════════════════════════════════════════════════
+function renderMeses(){
+  const el=document.getElementById('mesesContent');
+  if(!el) return;
+  const historico=cargarHistorico();
+  const cargadosActuales={};
+  archivos.filter(a=>!a.esVirtual&&a.parsed?.totales).forEach(a=>{
+    const key=extraerMesKey(a.parsed,a.nombre)||a.nombre;
+    cargadosActuales[key]={nombre:a.nombre,mesKey:key,resumen:{
+      c500:a.parsed.totales?.c500||0,c501:a.parsed.totales?.c501||0,
+      c507:a.parsed.totales?.c507||0,totalPropina:a.parsed.totales?.totalPropina||0,
+      totalImporte:a.parsed.totales?.totalImporte||0,
+      nCorregidos:a.parsed.rowsClasif?.filter(r=>r.corregido).length||0,
+      nPendientes:a.parsed.rowsClasif?.filter(r=>r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'&&!r.corregido).length||0,
+    }};
+  });
+  const todos={...historico,...cargadosActuales};
+  const meses=Object.values(todos).sort((a,b)=>(b.mesKey||'').localeCompare(a.mesKey||''));
+
+  if(!meses.length){
+    el.innerHTML=`<div class="empty-state"><div class="icon">📅</div><div class="title">Sin datos de meses</div>
+      <div style="font-size:11px;color:#9ca3af;line-height:1.7">Carga archivos TXT del portal SRI.<br>Los datos se guardan automáticamente entre sesiones.</div></div>`;
+    return;
+  }
+
+  const acum=meses.reduce((s,m)=>{
+    s.c500+=(m.resumen.c500||0);s.c501+=(m.resumen.c501||0);
+    s.c507+=(m.resumen.c507||0);s.totalImporte+=(m.resumen.totalImporte||0);
+    s.totalPropina+=(m.resumen.totalPropina||0);
+    return s;
+  },{c500:0,c501:0,c507:0,totalImporte:0,totalPropina:0});
+
+  el.innerHTML=`
+  <div class="resumen-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:12px">
+    <div class="resumen-box"><div class="resumen-label">Períodos</div><div class="resumen-value" style="color:var(--heka-blue)">${meses.length}</div></div>
+    <div class="resumen-box"><div class="resumen-label">Base Gravada acum.</div><div class="resumen-value" style="color:var(--heka-green)">$${acum.c500.toFixed(2)}</div></div>
+    <div class="resumen-box"><div class="resumen-label">IVA acumulado</div><div class="resumen-value" style="color:var(--heka-red)">$${acum.c501.toFixed(2)}</div></div>
+  </div>
+  <div class="card" style="padding:0">
+    <div class="section-hdr">📅 Comparativo por período</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Período</th><th style="text-align:right">Base Grav.</th><th style="text-align:right">IVA</th><th style="text-align:right">Base 0%</th><th style="text-align:right">Total</th><th>Estado</th></tr></thead>
+      <tbody>${meses.map((m,i)=>{
+        const [anio,mes]=(m.mesKey||'--').split('-');
+        const mesN=MESES_ES[parseInt(mes||0)]||(m.mesKey||'—');
+        const activo=!!cargadosActuales[m.mesKey];
+        return `<tr style="${i%2?'background:#f8faff':''}">
+          <td style="font-weight:700;color:var(--heka-blue);white-space:nowrap">${mesN} ${anio||''}</td>
+          <td class="td-num td-green">$${(m.resumen.c500||0).toFixed(2)}</td>
+          <td class="td-num td-red">$${(m.resumen.c501||0).toFixed(2)}</td>
+          <td class="td-num">$${(m.resumen.c507||0).toFixed(2)}</td>
+          <td class="td-num" style="font-weight:700">$${(m.resumen.totalImporte||0).toFixed(2)}</td>
+          <td style="font-size:10px;white-space:nowrap">
+            ${activo?'<span style="color:var(--heka-blue);font-weight:700">● activo</span>':'<span style="color:#9ca3af">guardado</span>'}
+            ${(m.resumen.nPendientes||0)>0?`<span style="color:#c2410c"> ⚠${m.resumen.nPendientes}</span>`:''}
+          </td>
+        </tr>`;
+      }).join('')}</tbody>
+      <tfoot><tr style="background:var(--heka-light)">
+        <td style="font-weight:800;color:var(--heka-blue)">TOTAL</td>
+        <td class="td-num" style="font-weight:800;color:var(--heka-green)">$${acum.c500.toFixed(2)}</td>
+        <td class="td-num" style="font-weight:800;color:var(--heka-red)">$${acum.c501.toFixed(2)}</td>
+        <td class="td-num" style="font-weight:800">$${acum.c507.toFixed(2)}</td>
+        <td class="td-num" style="font-weight:800">$${acum.totalImporte.toFixed(2)}</td>
+        <td></td>
+      </tr></tfoot>
+    </table></div>
+  </div>
+  <div style="margin-top:10px;display:flex;gap:8px">
+    <button class="btn btn-outline btn-sm" style="color:var(--heka-red);border-color:var(--heka-red)" onclick="limpiarHistorico()">🗑 Limpiar histórico</button>
+  </div>`;
+}
+
+async function exportarResumenMeses(){
+  if(!isOfficeReady()){showMsg('⚠ Office no listo','error');return;}
+  const historico=cargarHistorico();
+  const cargados={};
+  archivos.filter(a=>!a.esVirtual&&a.parsed?.totales).forEach(a=>{
+    const key=extraerMesKey(a.parsed,a.nombre)||a.nombre;
+    cargados[key]={nombre:a.nombre,mesKey:key,resumen:{c500:a.parsed.totales?.c500||0,c501:a.parsed.totales?.c501||0,c507:a.parsed.totales?.c507||0,totalImporte:a.parsed.totales?.totalImporte||0,totalPropina:a.parsed.totales?.totalPropina||0}};
+  });
+  const meses=Object.values({...historico,...cargados}).sort((a,b)=>(a.mesKey||'').localeCompare(b.mesKey||''));
+  if(!meses.length){showMsg('Sin datos de meses','error');return;}
+  showProgress(true);
+  try{
+    await Excel.run(async ctx=>{
+      const sheets=ctx.workbook.worksheets;sheets.load('items/name');await ctx.sync();
+      let ws;const existe=sheets.items.find(s=>s.name==='Resumen_Meses');
+      if(existe){ws=existe;ws.getUsedRange().clear();await ctx.sync();}else{ws=sheets.add('Resumen_Meses');}
+      ws.activate();await ctx.sync();
+      const hdrs=['PERÍODO','BASE GRAVADA (500)','IVA (501)','BASE 0% (507)','TOTAL'];
+      const data=[hdrs,...meses.map(m=>{
+        const [a,mes]=(m.mesKey||'').split('-');
+        return [`${MESES_ES[parseInt(mes||0)]||m.mesKey} ${a||''}`,m.resumen.c500||0,m.resumen.c501||0,m.resumen.c507||0,m.resumen.totalImporte||0];
+      })];
+      const nR=meses.length;
+      data.push(['TOTAL',0,0,0,0]);
+      ws.getRange(`A1:E${data.length}`).values=data;
+      ['B','C','D','E'].forEach(c=>ws.getRange(`${c}${nR+2}`).formulas=[[`=SUM(${c}2:${c}${nR+1})`]]);
+      ws.getRange('A1:E1').format.fill.color='#258dd6';ws.getRange('A1:E1').format.font.color='#fff';ws.getRange('A1:E1').format.font.bold=true;
+      ws.getRange(`B2:E${data.length}`).numberFormat=[['#,##0.00']];
+      ws.getRange(`A${data.length}:E${data.length}`).format.fill.color='#e8f4fd';ws.getRange(`A${data.length}:E${data.length}`).format.font.bold=true;
+      ws.getUsedRange().format.autofitColumns();await ctx.sync();
+      showProgress(false);showMsg('✓ Resumen de meses exportado','success');
+    });
+  }catch(e){showProgress(false);showMsg('✗ '+e.message,'error');}
+}
+
+// ══════════════════════════════════════════════════════════
+// BÚSQUEDA Y FILTRO
+// ══════════════════════════════════════════════════════════
+let filtroActivo={texto:'',soloConIVA:false,soloBase0:false,soloCorregidos:false,soloPendientes:false};
+
+function aplicarFiltro(rowsClasif){
+  return rowsClasif.filter(r=>{
+    if(filtroActivo.texto){
+      const t=filtroActivo.texto.toLowerCase();
+      if(!(r.RAZON_SOCIAL_EMISOR||'').toLowerCase().includes(t)&&
+         !(r.SERIE_COMPROBANTE||'').toLowerCase().includes(t)&&
+         !(r.RUC_EMISOR||'').includes(t)) return false;
+    }
+    if(filtroActivo.soloConIVA&&!(r.iva>0)) return false;
+    if(filtroActivo.soloBase0&&!(r.iva===0)) return false;
+    if(filtroActivo.soloCorregidos&&!r.corregido) return false;
+    if(filtroActivo.soloPendientes&&!(r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'&&!r.corregido)) return false;
+    return true;
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// VALIDACIÓN ANTES DE EXPORTAR
+// ══════════════════════════════════════════════════════════
+function validarDatos(parsed){
+  const errores=[],advertencias=[];
+  if(!parsed?.rowsClasif?.length){errores.push('Sin datos para exportar');return{errores,advertencias};}
+  parsed.rowsClasif.forEach((r,i)=>{
+    if(r.total===0) return;
+    const suma=parseFloat((r.baseGravada+r.base0+(r.baseExenta||0)+(r.baseNoObje||0)+r.iva+(r.propina||0)+(r.ice||0)).toFixed(2));
+    const diff=Math.abs(suma-r.total);
+    if(diff>0.15) advertencias.push(`Fila ${i+1} (${(r.RAZON_SOCIAL_EMISOR||'?').substring(0,25)}): diff $${diff.toFixed(2)}`);
+  });
+  const pendientes=parsed.rowsClasif.filter(r=>r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'&&!r.corregido);
+  if(pendientes.length>0) advertencias.push(`${pendientes.length} factura(s) con bases estimadas — casilleros 500/507 aproximados`);
+  return{errores,advertencias};
+}
+
+function mostrarValidacion(parsed,onContinue){
+  const{errores,advertencias}=validarDatos(parsed);
+  if(errores.length===0&&advertencias.length===0){onContinue();return;}
+  if(errores.length>0){showMsg('✗ '+errores.join(' | '),'error');return;}
+  const msg=`⚠️ ${advertencias.length} advertencia(s):\n\n${advertencias.slice(0,5).join('\n')}\n\n¿Exportar de todas formas?`;
+  if(confirm(msg)) onContinue();
+}
+
+// ══════════════════════════════════════════════════════════
+// NOTAS DE CRÉDITO — detectar y separar
+// ══════════════════════════════════════════════════════════
+function procesarNotasCredito(rowsClasif){
+  const facturas=rowsClasif.filter(r=>!(r.TIPO_COMPROBANTE||'').toLowerCase().includes('nota'));
+  const nc=rowsClasif.filter(r=>{
+    const t=(r.TIPO_COMPROBANTE||'').toLowerCase();
+    return t.includes('nota')&&(t.includes('cr'))||t.includes('nc');
+  });
+  return{facturas,notasCredito:nc,tieneNC:nc.length>0};
+}
+
+// ══════════════════════════════════════════════════════════
+// TUTORIAL DE PRIMERA VEZ
+// ══════════════════════════════════════════════════════════
+function verificarPrimeraVez(){
+  try{if(!localStorage.getItem('heka_tutorial_done')) setTimeout(mostrarTutorial,600);}catch(e){}
+}
+
+function mostrarTutorial(){
+  const pasos=[
+    {icon:'📁',titulo:'1. Carga tus XMLs primero',desc:'En la pestaña 📂, usa "Cargar carpeta XMLs" para cargar todos los comprobantes del mes. Esto clasifica las bases exactamente sin estimaciones.'},
+    {icon:'📄',titulo:'2. Carga el TXT del SRI',desc:'Descarga el TXT de "Comprobantes Recibidos" del portal SRI en línea. El sistema cruzará automáticamente los XMLs con el TXT y corregirá las facturas mixtas.'},
+    {icon:'🧾',titulo:'3. Revisa y declara',desc:'En 🧾 104A verás los casilleros calculados. En 📅 Meses se acumula el histórico entre sesiones. Los PDFs incluyen el detalle completo.'},
+  ];
+  const logoSrc=document.querySelector('.hdr-logo img')?.src||'';
+  document.body.insertAdjacentHTML('beforeend',`<div id="tut-overlay" onclick="cerrarTutorial()" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px">
+    <div onclick="event.stopPropagation()" style="background:#fff;border-radius:14px;padding:22px;max-width:320px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:14px;border-bottom:2px solid #e8f4fd">
+        <img src="${logoSrc}" style="width:34px;height:34px;border-radius:50%;background:#e8f4fd;padding:3px">
+        <div><div style="font-size:14px;font-weight:800;color:#258dd6">Gestor SRI · HEKA</div><div style="font-size:10px;color:#6b7280">Guía rápida de inicio</div></div>
+      </div>
+      ${pasos.map((p,i)=>`<div style="display:flex;gap:12px;margin-bottom:${i<pasos.length-1?14:0}px;${i<pasos.length-1?'padding-bottom:14px;border-bottom:1px solid #f3f4f6':''}">
+        <div style="font-size:22px;flex-shrink:0;margin-top:2px">${p.icon}</div>
+        <div><div style="font-size:12px;font-weight:700;color:#111;margin-bottom:3px">${p.titulo}</div>
+        <div style="font-size:11px;color:#6b7280;line-height:1.5">${p.desc}</div></div>
+      </div>`).join('')}
+      <button onclick="cerrarTutorial()" style="width:100%;margin-top:16px;background:#258dd6;color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer">
+        ¡Entendido, empezar! →
+      </button>
+    </div>
+  </div>`);
+}
+
+function cerrarTutorial(){
+  document.getElementById('tut-overlay')?.remove();
+  try{localStorage.setItem('heka_tutorial_done','1');}catch(e){}
+}
+
 </script>
 </body>
 </html>
