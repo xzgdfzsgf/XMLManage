@@ -3,377 +3,922 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Gestor SRI Ecuador</title>
+<title>Gestor SRI · HEKA</title>
 <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
 <style>
-/* ═══ HEKA DESIGN SYSTEM ═══════════════════════════════ */
-:root{
-  --heka-blue:   #258dd6;
-  --heka-dark:   #1a6fb0;
-  --heka-light:  #e8f4fd;
-  --heka-white:  #ffffff;
-  --heka-black:  #000000;
-  --heka-gray:   #f4f6f8;
-  --heka-border: #d0e4f4;
-  --heka-text:   #1a1a2e;
-  --heka-muted:  #6b7280;
-  --heka-green:  #16a34a;
-  --heka-red:    #dc2626;
-  --heka-orange: #d97706;
-  --heka-yellow: #fef9c3;
+/* ═══════════════════════════════════════════════════════════
+   HEKA GESTOR SRI — Design System v2
+   Objetivo: claro, guiado, para no contadores
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  /* Paleta HEKA */
+  --blue:       #258dd6;
+  --blue-dark:  #1a6fb0;
+  --blue-deep:  #0f4880;
+  --blue-light: #e8f4fd;
+  --blue-pale:  #f0f8ff;
+
+  /* Semáforo de estado */
+  --green:      #16a34a;
+  --green-bg:   #f0fdf4;
+  --green-border:#bbf7d0;
+  --red:        #dc2626;
+  --red-bg:     #fef2f2;
+  --red-border: #fecaca;
+  --amber:      #d97706;
+  --amber-bg:   #fffbeb;
+  --amber-border:#fde68a;
+  --yellow-bg:  #fef9c3;
+
+  /* Neutros */
+  --surface:    #f6f8fb;
+  --card:       #ffffff;
+  --border:     #dce8f4;
+  --border-soft:#eef4fa;
+  --text:       #0f172a;
+  --text-muted: #64748b;
+  --text-light: #94a3b8;
+
+  /* Tipografía */
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: 'Consolas', 'Cascadia Code', monospace;
+
+  /* Espaciado */
+  --r4: 4px;  --r6: 6px;  --r8: 8px;
+  --r10: 10px; --r12: 12px; --r16: 16px;
 }
 
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:#f4f6f8;color:var(--heka-text);font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+/* Reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--blue); }
 
-/* HEADER */
-.hdr{background:var(--heka-blue);padding:11px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;box-shadow:0 2px 8px rgba(37,141,214,.3)}
-.hdr-logo{width:34px;height:34px;flex-shrink:0;background:var(--heka-white);border-radius:50%;padding:3px;display:flex;align-items:center;justify-content:center}
-.hdr-logo img{width:28px;height:28px;object-fit:contain}
-.hdr-title{font-size:14px;font-weight:800;color:var(--heka-white);letter-spacing:.3px}
-.hdr-sub{font-size:10px;color:rgba(255,255,255,.8);margin-top:1px}
+html, body {
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 
-/* TABS */
-.tabs{display:flex;background:var(--heka-white);border-bottom:3px solid var(--heka-light);flex-shrink:0}
-.tab{flex:1;padding:9px 3px;text-align:center;cursor:pointer;font-size:10px;color:var(--heka-muted);border:none;background:none;font-family:inherit;border-bottom:3px solid transparent;margin-bottom:-3px;font-weight:500;transition:all .15s;position:relative}
-.tab:hover{color:var(--heka-blue);background:var(--heka-light)}
-.tab.active{color:var(--heka-blue);border-bottom:3px solid var(--heka-blue);font-weight:700;background:rgba(37,141,214,.04)}
-.tab .badge-pill{position:absolute;top:3px;right:6px;background:var(--heka-red);color:#fff;border-radius:99px;font-size:9px;padding:0 5px;font-weight:800;min-width:14px;text-align:center}
+/* ── HEADER ── */
+.hdr {
+  background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 12px rgba(15,72,128,.25);
+}
+.hdr-logo {
+  width: 32px; height: 32px;
+  background: rgba(255,255,255,.15);
+  border-radius: 8px;
+  padding: 3px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.hdr-logo img { width: 26px; height: 26px; object-fit: contain; }
+.hdr-text { flex: 1; min-width: 0; }
+.hdr-name {
+  font-size: 13px; font-weight: 800;
+  color: #fff; letter-spacing: .3px;
+  line-height: 1.2;
+}
+.hdr-sub {
+  font-size: 10px;
+  color: rgba(255,255,255,.75);
+  margin-top: 1px;
+}
 
-/* CONTENT */
-.content{flex:1;overflow-y:auto;padding:12px}
+/* ── TABS ── */
+.tabs {
+  display: flex;
+  background: var(--card);
+  border-bottom: 2px solid var(--border-soft);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
 
-/* DROPZONE */
-.dropzone{border:2px dashed var(--heka-border);border-radius:10px;padding:16px 12px;text-align:center;cursor:pointer;transition:all .2s;color:var(--heka-muted);font-size:12px;line-height:1.8;background:var(--heka-white);margin-bottom:10px}
-.dropzone:hover,.dropzone.drag{border-color:var(--heka-blue);background:var(--heka-light);color:var(--heka-blue)}
-.dropzone input{display:none}
-.dz-xml{border-color:#fbbf24;background:#fffbeb}
-.dz-xml:hover,.dz-xml.drag{border-color:var(--heka-orange);background:#fef3c7}
+.tab {
+  flex: 1;
+  min-width: 38px;
+  padding: 9px 4px 8px;
+  border: none;
+  background: none;
+  font-family: var(--font);
+  font-size: 10px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all .15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  position: relative;
+  white-space: nowrap;
+}
+.tab .tab-icon { font-size: 14px; line-height: 1; }
+.tab .tab-label { font-size: 9px; font-weight: 500; }
+.tab:hover { color: var(--blue); background: var(--blue-pale); }
+.tab.active {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
+  font-weight: 700;
+  background: var(--blue-pale);
+}
+.tab .badge-pill {
+  position: absolute;
+  top: 4px; right: 4px;
+  background: var(--red);
+  color: #fff;
+  border-radius: 99px;
+  font-size: 8px;
+  padding: 0 4px;
+  font-weight: 800;
+  min-width: 14px;
+  text-align: center;
+  line-height: 14px;
+  height: 14px;
+}
 
-/* BUTTONS */
-.btn{border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap;border:none;font-weight:600;transition:all .15s}
-.btn-primary{background:var(--heka-blue);color:#fff;box-shadow:0 1px 4px rgba(37,141,214,.3)}
-.btn-primary:hover{background:var(--heka-dark)}
-.btn-success{background:var(--heka-green);color:#fff}
-.btn-success:hover{background:#15803d}
-.btn-warn{background:var(--heka-orange);color:#fff}
-.btn-danger{background:var(--heka-red);color:#fff}
-.btn-outline{background:#fff;border:1.5px solid var(--heka-border);color:var(--heka-text)}
-.btn-outline:hover{border-color:var(--heka-blue);color:var(--heka-blue);background:var(--heka-light)}
-.btn-sm{padding:5px 10px;font-size:11px}
-.btn-full{width:100%;text-align:center;display:block}
-.btn-heka{background:var(--heka-blue);color:#fff;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;border:none;cursor:pointer;box-shadow:0 2px 6px rgba(37,141,214,.35);transition:all .15s}
-.btn-heka:hover{background:var(--heka-dark);transform:translateY(-1px)}
+/* ── PANELS ── */
+.panel { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+.panel.visible { display: flex; }
+.panel-scroll { flex: 1; overflow-y: auto; padding: 12px; }
 
-/* CARDS */
-.card{background:#fff;border:1.5px solid var(--heka-border);border-radius:10px;padding:12px 14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
-.card-title{font-size:11px;font-weight:700;color:var(--heka-text);margin-bottom:8px}
+/* ── PROGRESS STRIP ── */
+.progress-strip {
+  display: none;
+  background: var(--blue);
+  color: #fff;
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+  animation: pulse .8s infinite alternate;
+}
+@keyframes pulse { from { opacity: .85; } to { opacity: 1; } }
 
-/* BADGES */
-.badge{display:inline-block;border-radius:5px;padding:2px 8px;font-size:10px;font-weight:700}
-.badge-blue{background:var(--heka-light);color:var(--heka-blue)}
-.badge-green{background:#dcfce7;color:#15803d}
-.badge-yellow{background:#fef9c3;color:#854d0e}
-.badge-red{background:#fee2e2;color:var(--heka-red)}
-.badge-gray{background:#f3f4f6;color:var(--heka-muted)}
-.badge-purple{background:#f3e8ff;color:#7e22ce}
-.badge-orange{background:#fff7ed;color:var(--heka-orange)}
-.badge-xml{display:inline-block;background:#dcfce7;color:#15803d;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700}
-.badge-warn{display:inline-block;background:#fef9c3;color:#854d0e;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700}
+/* ── TOOLBAR ── */
+.toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--card);
+  border-bottom: 1.5px solid var(--border-soft);
+  flex-wrap: wrap;
+  align-items: center;
+  flex-shrink: 0;
+}
+.toolbar-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+}
 
-/* FILE ITEMS */
-.file-item{padding:9px 14px;border-bottom:1px solid var(--heka-gray);cursor:pointer;border-left:3px solid transparent;transition:all .15s}
-.file-item:hover{background:var(--heka-light)}
-.file-item.active{border-left-color:var(--heka-blue);background:var(--heka-light)}
-.file-name{font-size:11px;word-break:break-all;margin-bottom:4px;color:var(--heka-text);font-weight:500}
-.file-meta{font-size:10px;color:var(--heka-muted);margin-top:3px}
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  border-radius: var(--r8);
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all .15s;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+.btn-sm { padding: 5px 10px; font-size: 10px; }
+.btn-full { width: 100%; justify-content: center; }
+.btn-primary { background: var(--blue); color: #fff; box-shadow: 0 1px 4px rgba(37,141,214,.3); }
+.btn-primary:hover { background: var(--blue-dark); transform: translateY(-1px); box-shadow: 0 3px 8px rgba(37,141,214,.4); }
+.btn-success { background: var(--green); color: #fff; }
+.btn-success:hover { background: #15803d; }
+.btn-warn { background: var(--amber); color: #fff; }
+.btn-ghost { background: var(--card); border: 1.5px solid var(--border); color: var(--text-muted); }
+.btn-ghost:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-pale); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-icon-only { padding: 6px 8px; }
 
-/* TABLES */
-.tbl-wrap{overflow-x:auto;border-radius:8px;border:1.5px solid var(--heka-border)}
-table{border-collapse:collapse;width:100%;font-size:11px}
-th{background:var(--heka-blue);color:#fff;padding:7px 9px;text-align:left;white-space:nowrap;font-weight:600;font-size:10px}
-td{padding:5px 9px;border-bottom:1px solid var(--heka-gray);color:var(--heka-text);white-space:nowrap}
-tr:hover td{background:var(--heka-light)}
-.td-num{text-align:right;font-family:'Consolas',monospace}
-.td-green{color:var(--heka-green);font-weight:700}
-.td-red{color:var(--heka-red)}
-.td-orange{color:var(--heka-orange)}
+/* ── CARDS ── */
+.card {
+  background: var(--card);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--r12);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.card-header {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.card-header-accent {
+  background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+  color: #fff;
+  padding: 9px 14px;
+  border-radius: var(--r10) var(--r10) 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  margin: -12px -14px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-header-green {
+  background: linear-gradient(135deg, var(--green), #15803d);
+  color: #fff;
+  padding: 9px 14px;
+  border-radius: var(--r10) var(--r10) 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  margin: -12px -14px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-header-dark {
+  background: linear-gradient(135deg, #1e3a5f, #0f2040);
+  color: #fff;
+  padding: 9px 14px;
+  border-radius: var(--r10) var(--r10) 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  margin: -12px -14px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-/* ALERTS */
-.alert{border-radius:8px;padding:10px 13px;font-size:12px;margin-bottom:10px;line-height:1.5;border-left:4px solid}
-.alert-success{background:#f0fdf4;border-color:var(--heka-green);color:#15803d}
-.alert-error{background:#fef2f2;border-color:var(--heka-red);color:var(--heka-red)}
-.alert-info{background:var(--heka-light);border-color:var(--heka-blue);color:var(--heka-blue)}
-.alert-warn{background:#fffbeb;border-color:#f59e0b;color:#92400e}
+/* ── STAT CHIPS ── */
+.stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.stats-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+.stat-chip {
+  background: var(--card);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--r10);
+  padding: 10px 12px;
+  text-align: center;
+}
+.stat-chip.accent { border-color: var(--blue); background: var(--blue-pale); }
+.stat-chip.green  { border-color: var(--green-border); background: var(--green-bg); }
+.stat-chip.red    { border-color: var(--red-border); background: var(--red-bg); }
+.stat-chip.amber  { border-color: var(--amber-border); background: var(--amber-bg); }
+.stat-label { font-size: 9px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 3px; }
+.stat-val   { font-size: 17px; font-weight: 800; font-family: var(--mono); line-height: 1.2; }
+.stat-val.blue  { color: var(--blue); }
+.stat-val.green { color: var(--green); }
+.stat-val.red   { color: var(--red); }
+.stat-val.amber { color: var(--amber); }
 
-/* RESUMEN GRID */
-.resumen-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.resumen-box{background:#fff;border:1.5px solid var(--heka-border);border-radius:8px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
-.resumen-label{font-size:9px;color:var(--heka-muted);margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
-.resumen-value{font-size:15px;font-weight:800;font-family:'Consolas',monospace}
+/* ── DROPZONE ── */
+.drop {
+  border: 2px dashed var(--border);
+  border-radius: var(--r12);
+  padding: 20px 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+  background: var(--card);
+  margin-bottom: 10px;
+}
+.drop:hover, .drop.drag {
+  border-color: var(--blue);
+  background: var(--blue-pale);
+}
+.drop.xml-drop { border-color: var(--amber-border); background: var(--amber-bg); }
+.drop.xml-drop:hover { border-color: var(--amber); }
+.drop-icon { font-size: 28px; margin-bottom: 6px; }
+.drop-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.drop-hint  { font-size: 10px; color: var(--text-muted); line-height: 1.6; }
+.drop input { display: none; }
 
-/* TOOLBAR */
-.toolbar{display:flex;gap:6px;padding:8px 12px;background:#fff;border-bottom:1.5px solid var(--heka-border);flex-wrap:wrap;align-items:center;flex-shrink:0}
+/* ── FILE LIST ── */
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  cursor: pointer;
+  transition: all .12s;
+  border-left: 3px solid transparent;
+}
+.file-item:hover { background: var(--blue-pale); }
+.file-item.active { border-left-color: var(--blue); background: var(--blue-pale); }
+.file-item-icon { font-size: 18px; flex-shrink: 0; }
+.file-item-body { flex: 1; min-width: 0; }
+.file-item-name { font-size: 11px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-item-meta { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+.file-item-badges { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
 
-/* PROGRESS */
-.progress{display:none;padding:8px 14px;background:var(--heka-light);border-bottom:1px solid var(--heka-border);font-size:11px;color:var(--heka-blue);flex-shrink:0}
+/* ── BADGES ── */
+.badge {
+  display: inline-block;
+  border-radius: var(--r4);
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 15px;
+}
+.badge-blue   { background: var(--blue-light); color: var(--blue); }
+.badge-green  { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.badge-amber  { background: var(--amber-bg); color: #92400e; border: 1px solid var(--amber-border); }
+.badge-red    { background: var(--red-bg); color: var(--red); }
+.badge-gray   { background: #f1f5f9; color: var(--text-muted); }
+.badge-yellow { background: var(--yellow-bg); color: #854d0e; border: 1px solid #fef08a; }
+.badge-xml    { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); font-weight: 800; }
 
-/* PANELS */
-.panel{display:none;flex-direction:column;flex:1;overflow:hidden}
-.panel.visible{display:flex}
+/* ── ALERTS ── */
+.alert {
+  border-radius: var(--r8);
+  padding: 10px 13px;
+  font-size: 11px;
+  margin-bottom: 10px;
+  line-height: 1.6;
+  border-left: 4px solid;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.alert-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.alert-info   { background: var(--blue-pale); border-color: var(--blue); color: var(--blue-dark); }
+.alert-success { background: var(--green-bg); border-color: var(--green); color: #166534; }
+.alert-warn   { background: var(--amber-bg); border-color: var(--amber); color: #92400e; }
+.alert-error  { background: var(--red-bg); border-color: var(--red); color: #991b1b; }
 
-/* CASILLEROS */
-.casillero-row{display:flex;align-items:center;padding:7px 14px;border-bottom:1px solid var(--heka-gray);gap:8px}
-.cas-num{border-radius:5px;padding:3px 8px;font-size:11px;font-weight:800;min-width:40px;text-align:center;flex-shrink:0;background:var(--heka-light);color:var(--heka-blue)}
-.cas-desc{flex:1;font-size:11px;color:var(--heka-text);line-height:1.3}
-.cas-val{font-family:monospace;font-weight:700;font-size:12px;min-width:75px;text-align:right;flex-shrink:0;color:var(--heka-blue)}
-.cas-manual{font-size:10px;color:var(--heka-muted);font-style:italic}
+/* ── TABLES ── */
+.tbl-wrap { overflow-x: auto; border-radius: var(--r10); border: 1.5px solid var(--border-soft); }
+table { border-collapse: collapse; width: 100%; font-size: 10.5px; }
+thead tr { background: linear-gradient(135deg, var(--blue), var(--blue-dark)); }
+th { padding: 7px 9px; text-align: left; color: #fff; font-weight: 600; font-size: 9.5px; white-space: nowrap; letter-spacing: .3px; }
+td { padding: 5px 9px; border-bottom: 1px solid var(--border-soft); color: var(--text); white-space: nowrap; }
+tr:hover td { background: var(--blue-pale); }
+tr:last-child td { border-bottom: none; }
+.td-num { text-align: right; font-family: var(--mono); font-size: 10px; }
+.td-green { color: var(--green); font-weight: 700; }
+.td-red   { color: var(--red); }
+.td-amber { color: var(--amber); font-weight: 700; }
 
-/* FIX PANEL */
-.fix-item{background:#fffbeb;border:1.5px solid #fde68a;border-radius:8px;padding:10px 13px;margin-bottom:8px}
-.fix-item.resuelto{background:#f0fdf4;border-color:#bbf7d0}
-.fix-title{font-size:11px;font-weight:700;color:#92400e;margin-bottom:4px}
-.fix-title.resuelto{color:var(--heka-green)}
-.fix-sub{font-size:10px;color:var(--heka-muted);margin-bottom:6px}
-.fix-valores{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:6px}
-.fix-val{background:#fff;border:1px solid var(--heka-border);border-radius:5px;padding:5px 7px;text-align:center}
-.fix-val-label{font-size:9px;color:var(--heka-muted);text-transform:uppercase}
-.fix-val-num{font-size:12px;font-weight:700;font-family:monospace}
+/* ── CASILLEROS 104A ── */
+.cas-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  gap: 10px;
+  transition: background .1s;
+}
+.cas-row:hover { background: var(--blue-pale); }
+.cas-row:last-child { border-bottom: none; }
+.cas-row.editable { background: #fffef0; }
+.cas-row.editable:hover { background: #fffde0; }
+.cas-row.calculated { background: var(--blue-pale); }
+.cas-row.result-pay { background: var(--red-bg); }
+.cas-row.result-favor { background: var(--green-bg); }
+.cas-num {
+  border-radius: var(--r6);
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  min-width: 42px;
+  text-align: center;
+  flex-shrink: 0;
+  font-family: var(--mono);
+}
+.cas-num-blue   { background: var(--blue-light); color: var(--blue); }
+.cas-num-green  { background: var(--green-bg); color: var(--green); }
+.cas-num-red    { background: var(--red-bg); color: var(--red); }
+.cas-num-amber  { background: var(--amber-bg); color: var(--amber); }
+.cas-num-gray   { background: #f1f5f9; color: var(--text-muted); }
+.cas-num-dark   { background: #e2e8f0; color: #334155; }
+.cas-desc { flex: 1; font-size: 11px; color: var(--text); line-height: 1.4; }
+.cas-desc small { font-size: 9px; color: var(--text-muted); display: block; margin-top: 1px; }
+.cas-val {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 12px;
+  min-width: 80px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.cas-input {
+  width: 90px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r6);
+  padding: 4px 8px;
+  font-size: 11px;
+  font-family: var(--mono);
+  text-align: right;
+  font-weight: 700;
+  color: var(--blue);
+  background: #fff;
+  outline: none;
+  flex-shrink: 0;
+}
+.cas-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,141,214,.15); }
 
-/* EMPTY STATE */
-.empty-state{text-align:center;padding:28px 20px;color:var(--heka-muted)}
-.empty-state .icon{font-size:36px;margin-bottom:10px}
-.empty-state .title{font-size:13px;font-weight:700;color:var(--heka-text);margin-bottom:6px}
+/* ── FIX PANEL ── */
+.fix-item {
+  border-radius: var(--r10);
+  padding: 12px;
+  margin-bottom: 8px;
+  border: 1.5px solid;
+}
+.fix-item.pending { background: var(--amber-bg); border-color: var(--amber-border); }
+.fix-item.solved  { background: var(--green-bg); border-color: var(--green-border); }
+.fix-title   { font-size: 11px; font-weight: 700; margin-bottom: 4px; }
+.fix-pending .fix-title { color: #92400e; }
+.fix-solved  .fix-title { color: var(--green); }
+.fix-sub     { font-size: 10px; color: var(--text-muted); margin-bottom: 8px; }
+.fix-vals { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+.fix-val { background: #fff; border: 1px solid var(--border); border-radius: var(--r6); padding: 5px 7px; text-align: center; }
+.fix-val-label { font-size: 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; }
+.fix-val-num { font-size: 12px; font-weight: 700; font-family: var(--mono); margin-top: 1px; }
 
-/* CHECKBOXES */
-label.check{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--heka-text);padding:4px 0}
-input[type=checkbox]{width:14px;height:14px;accent-color:var(--heka-blue)}
+/* ── EMPTY STATE ── */
+.empty {
+  text-align: center;
+  padding: 32px 20px;
+  color: var(--text-muted);
+}
+.empty-icon { font-size: 40px; margin-bottom: 12px; opacity: .6; }
+.empty-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.empty-sub   { font-size: 11px; line-height: 1.7; }
 
-/* SCROLLBAR */
-::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-track{background:var(--heka-gray)}
-::-webkit-scrollbar-thumb{background:var(--heka-border);border-radius:2px}
-::-webkit-scrollbar-thumb:hover{background:var(--heka-blue)}
+/* ── SEARCH INPUT ── */
+.search-wrap { position: relative; flex: 1; min-width: 100px; }
+.search-wrap .search-icon {
+  position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+  font-size: 12px; color: var(--text-muted); pointer-events: none;
+}
+.search-input {
+  width: 100%;
+  padding: 5px 9px 5px 28px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r6);
+  font-size: 11px;
+  font-family: var(--font);
+  background: var(--card);
+  outline: none;
+  color: var(--text);
+}
+.search-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,141,214,.12); }
 
-/* SECTION HEADER */
-.section-hdr{background:var(--heka-blue);color:#fff;padding:7px 14px;border-radius:7px 7px 0 0;font-size:11px;font-weight:700}
-.section-hdr-green{background:var(--heka-green)}
+/* ── FILTER CHIPS ── */
+.filter-chip {
+  border: 1.5px solid var(--border);
+  border-radius: 99px;
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--card);
+  color: var(--text-muted);
+  transition: all .12s;
+  white-space: nowrap;
+}
+.filter-chip:hover { border-color: var(--blue); color: var(--blue); }
+.filter-chip.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed;
+  bottom: 20px; right: 16px; left: 16px;
+  background: var(--blue-deep);
+  color: #fff;
+  border-radius: var(--r10);
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: 0 4px 20px rgba(15,72,128,.4);
+  transform: translateY(80px);
+  opacity: 0;
+  transition: all .3s;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#toast.visible { transform: translateY(0); opacity: 1; }
+#toast.toast-success { background: var(--green); }
+#toast.toast-error   { background: var(--red); }
+#toast.toast-warn    { background: var(--amber); }
+
+/* ── RESULT CARD ── */
+.result-card {
+  border-radius: var(--r12);
+  padding: 14px 16px;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.result-card.pay   { background: var(--red-bg); border: 2px solid var(--red-border); }
+.result-card.favor { background: var(--green-bg); border: 2px solid var(--green-border); }
+.result-amount { font-size: 22px; font-weight: 900; font-family: var(--mono); }
+.result-pay   .result-amount { color: var(--red); }
+.result-favor .result-amount { color: var(--green); }
+.result-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; opacity: .75; margin-bottom: 2px; }
+.result-formula { font-size: 9px; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+
+/* ── XMLPOOL BANNER ── */
+.xml-banner {
+  background: var(--amber-bg);
+  border: 1.5px solid var(--amber-border);
+  border-radius: var(--r8);
+  padding: 9px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #92400e;
+  margin-bottom: 10px;
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── GUIDE STEPS ── */
+.steps { counter-reset: step; }
+.step {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  align-items: flex-start;
+}
+.step-n {
+  counter-increment: step;
+  width: 22px; height: 22px;
+  background: var(--blue);
+  color: #fff;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.step-body { font-size: 11px; color: var(--text); line-height: 1.6; flex: 1; }
+.step-body strong { color: var(--blue); }
+
+/* ── CHECKBOX ── */
+label.check {
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer; font-size: 11px; color: var(--text);
+  padding: 4px 0;
+}
+input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--blue); }
+
+/* ── MONTH GRID ── */
+.month-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.month-card {
+  background: var(--card);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--r10);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.month-card:hover { border-color: var(--blue); background: var(--blue-pale); }
+.month-card.active { border-color: var(--blue); background: var(--blue-pale); border-width: 2px; }
+.month-name { font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.month-vals { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+.month-val  { font-size: 9px; }
+.month-val .lbl { color: var(--text-muted); }
+.month-val .num { font-family: var(--mono); font-weight: 600; color: var(--text); }
+
+/* ── IVA 8% ROW ── */
+tr.iva8-row td { background: #fffbeb !important; }
+tr.iva8-row:hover td { background: #fef3c7 !important; }
+
+/* ── TOTALS ROW ── */
+tr.total-row td {
+  background: var(--blue-light) !important;
+  font-weight: 800;
+  color: var(--blue);
+  border-top: 2px solid var(--blue);
+}
+
 </style>
 </head>
 <body>
 
+<!-- ══ HEADER ══ -->
 <div class="hdr">
   <div class="hdr-logo">
     <img src="data:image/png;base64,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" alt="HEKA">
   </div>
-  <div>
-    <div class="hdr-title" style="color:#ffffff;font-size:14px;font-weight:800">Gestor SRI · HEKA</div>
-    <div class="hdr-sub" style="color:rgba(255,255,255,0.9);font-size:10px">Comprobantes · IVA · Formulario 104A</div>
-  </div>
-</div>
-  <div>
-    <div class="hdr-title">Gestor SRI Ecuador</div>
+  <div class="hdr-text">
+    <div class="hdr-name">Gestor SRI · HEKA</div>
     <div class="hdr-sub">Comprobantes · IVA · Formulario 104A</div>
   </div>
 </div>
 
+<!-- ══ TABS ══ -->
 <div class="tabs">
-  <button class="tab active" onclick="goTab('cargar')" id="tab-cargar" title="Cargar archivos">📂</button>
-  <button class="tab" onclick="goTab('vista')" id="tab-vista" title="Vista comprobantes recibidos">📥</button>
-  <button class="tab" onclick="goTab('emitidos')" id="tab-emitidos" title="Facturas emitidas">📤</button>
-  <button class="tab" onclick="goTab('fix')" id="tab-fix" title="Corregir con XML">🔧</button>
-  <button class="tab" onclick="goTab('f104')" id="tab-f104" title="Formulario 104A">🧾</button>
-  <button class="tab" onclick="goTab('meses')" id="tab-meses" title="Comparativo meses">📅</button>
-  <button class="tab" onclick="goTab('excel')" id="tab-excel" title="Exportar Excel">📊</button>
+  <button class="tab active" id="tab-cargar"   onclick="goTab('cargar')">
+    <span class="tab-icon">📂</span>
+    <span class="tab-label">Cargar</span>
+  </button>
+  <button class="tab" id="tab-vista"    onclick="goTab('vista')">
+    <span class="tab-icon">📥</span>
+    <span class="tab-label">Recibidos</span>
+  </button>
+  <button class="tab" id="tab-emitidos" onclick="goTab('emitidos')">
+    <span class="tab-icon">📤</span>
+    <span class="tab-label">Emitidos</span>
+  </button>
+  <button class="tab" id="tab-fix"      onclick="goTab('fix')">
+    <span class="tab-icon">🔧</span>
+    <span class="tab-label">Corregir</span>
+  </button>
+  <button class="tab" id="tab-f104"     onclick="goTab('f104')">
+    <span class="tab-icon">🧾</span>
+    <span class="tab-label">104A</span>
+  </button>
+  <button class="tab" id="tab-meses"    onclick="goTab('meses')">
+    <span class="tab-icon">📅</span>
+    <span class="tab-label">Meses</span>
+  </button>
+  <button class="tab" id="tab-excel"    onclick="goTab('excel')">
+    <span class="tab-icon">📊</span>
+    <span class="tab-label">Excel</span>
+  </button>
 </div>
 
-<div class="progress" id="progress">⏳ Procesando...</div>
+<!-- ══ PROGRESS STRIP ══ -->
+<div class="progress-strip" id="progress">⏳ Procesando...</div>
 
-<!-- ══ CARGAR ══ -->
+<!-- ══════════════════════════════════════════════
+     PANEL: CARGAR
+══════════════════════════════════════════════ -->
 <div class="panel visible" id="panel-cargar">
-  <div class="content">
-    <!-- Área de carga principal -->
-    <div class="dropzone" id="dz" onclick="document.getElementById('fi').click()"
+  <div class="panel-scroll">
+
+    <!-- Zona de carga principal -->
+    <div class="drop" id="dz"
+      onclick="document.getElementById('fi').click()"
       ondragover="event.preventDefault();this.classList.add('drag')"
       ondragleave="this.classList.remove('drag')"
       ondrop="onDrop(event)">
       <input type="file" id="fi" accept=".txt,.csv,.xml" multiple onchange="onFiles(this.files)">
-      📂 Clic o arrastra aquí<br>
-      <strong>TXT del portal SRI</strong> · XML individuales · Carpeta de XMLs
+      <div class="drop-icon">📄</div>
+      <div class="drop-title">Carga tu TXT del portal SRI</div>
+      <div class="drop-hint">
+        Arrastra el archivo aquí o haz clic para buscarlo<br>
+        También puedes cargar XMLs individuales o una carpeta completa
+      </div>
     </div>
 
-    <!-- Botones de carga rápida -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-      <button class="btn btn-primary btn-sm" onclick="document.getElementById('fi').click()" style="text-align:center">
-        📄 Cargar TXT del SRI
+    <!-- Botones secundarios -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <button class="btn btn-ghost" onclick="document.getElementById('fi').click()">
+        📄 TXT del SRI
       </button>
-      <button class="btn btn-outline btn-sm" onclick="document.getElementById('fiCarpeta').click()" style="text-align:center;border-color:#d97706;color:#d97706">
-        📁 Cargar carpeta XMLs
+      <button class="btn btn-ghost" style="border-color:var(--amber);color:var(--amber)"
+        onclick="document.getElementById('fiCarpeta').click()">
+        📁 Carpeta de XMLs
       </button>
       <input type="file" id="fiCarpeta" webkitdirectory multiple accept=".xml" style="display:none" onchange="onFiles(this.files)">
     </div>
 
-    <!-- Indicador de XMLs en espera (se muestra cuando hay XMLs pero no TXT) -->
-    <div id="xmlPoolCount" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;font-size:11px;color:#92400e;margin-bottom:8px;text-align:center"></div>
+    <!-- Banner XMLs en espera -->
+    <div class="xml-banner" id="xmlPoolCount">
+      <span>📦</span><span id="xmlPoolText">0 XMLs en espera</span>
+    </div>
 
+    <!-- Lista de archivos -->
     <div id="fileList">
-      <div class="empty-state">
-        <div class="icon">🇪🇨</div>
-        <div class="title">Sin archivos cargados</div>
-        <div style="font-size:11px;color:#9ca3af;line-height:1.8">
-          <strong>Flujo recomendado:</strong><br>
-          <strong>Comprobantes Recibidos (adquisiciones):</strong><br>
-          1. Carga la <strong>carpeta de XMLs</strong> del mes<br>
-          2. Luego carga el <strong>TXT de Recibidos</strong><br><br>
-          <strong>Comprobantes Emitidos (ventas):</strong><br>
-          3. Carga el <strong>TXT de Emitidos</strong> del portal SRI<br>
-          4. Con los XMLs emitidos → casilleros 401/402 exactos
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="empty">
+          <div class="empty-icon">🇪🇨</div>
+          <div class="empty-title">Sin archivos cargados</div>
+          <div class="empty-sub">
+            <strong>¿Cómo empezar?</strong><br><br>
+            <strong>Comprobantes recibidos (lo que compraste):</strong><br>
+            1. Entra al portal SRI → Comprobantes electrónicos → Recibidos<br>
+            2. Descarga el <strong>TXT del período</strong><br>
+            3. Cárgalo aquí arriba<br><br>
+            <strong>Comprobantes emitidos (lo que vendiste):</strong><br>
+            4. Portal SRI → Comprobantes → Emitidos → descarga TXT<br>
+            5. Cárgalo también aquí
+          </div>
         </div>
       </div>
     </div>
+
   </div>
 </div>
 
-<!-- ══ EMITIDOS ══ -->
-<div class="panel" id="panel-emitidos">
-  <div class="toolbar">
-    <button class="btn btn-outline btn-sm" onclick="goTab('cargar')">← Volver</button>
-    <span style="font-size:11px;font-weight:700">📤 Facturas Emitidas</span>
-    <div id="emitidosBadges" style="display:flex;gap:4px;align-items:center"></div>
-    <div style="flex:1"></div>
-    <button class="btn btn-outline btn-sm" onclick="imprimirPDF('emitidos')">🖨️ PDF</button>
-    <button class="btn btn-success btn-sm" onclick="exportarEmitidos()">📊 Excel</button>
-  </div>
-  <div class="content" id="emitidosContent">
-    <div class="empty-state">
-      <div class="icon">📤</div>
-      <div class="title">Sin facturas emitidas</div>
-      <div style="font-size:11px;color:#9ca3af;line-height:1.7">
-        Carga el TXT de <strong>Comprobantes Emitidos</strong> desde el portal SRI.<br>
-        Opcionalmente carga también los XMLs para ver el detalle completo.
-      </div>
-      <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="goTab('cargar')">📂 Ir a Cargar</button>
-    </div>
-  </div>
-</div>
-
-<!-- ══ VISTA ══ -->
+<!-- ══════════════════════════════════════════════
+     PANEL: VISTA (RECIBIDOS)
+══════════════════════════════════════════════ -->
 <div class="panel" id="panel-vista">
-  <div class="toolbar" style="flex-wrap:wrap;gap:5px">
-    <button class="btn btn-outline btn-sm" onclick="goTab('cargar')">← Volver</button>
-    <div id="vistaBadges" style="display:flex;gap:4px;align-items:center"></div>
-    <input id="buscador" type="text" placeholder="🔍 Buscar emisor, serie, RUC..." 
-      style="flex:1;min-width:120px;border:1.5px solid var(--heka-border);border-radius:6px;padding:5px 9px;font-size:11px;font-family:inherit;outline:none"
-      oninput="onBuscar(this.value)">
-    <div style="display:flex;gap:4px;flex-wrap:wrap">
-      <button class="btn btn-sm" id="filtroIVA" onclick="toggleFiltro('soloConIVA')" style="background:#f3f4f6;border:1px solid #d1d5db;font-size:10px">Con IVA</button>
-      <button class="btn btn-sm" id="filtroBase0" onclick="toggleFiltro('soloBase0')" style="background:#f3f4f6;border:1px solid #d1d5db;font-size:10px">Solo 0%</button>
-      <button class="btn btn-sm" id="filtroXML" onclick="toggleFiltro('soloCorregidos')" style="background:#f3f4f6;border:1px solid #d1d5db;font-size:10px">✓ XML</button>
+  <div class="toolbar">
+    <button class="btn btn-ghost btn-sm" onclick="goTab('cargar')">← Volver</button>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="buscador" placeholder="Buscar emisor, serie, RUC..." oninput="onBuscar(this.value)">
     </div>
-    <button class="btn btn-warn btn-sm" id="btnFixTab" onclick="goTab('fix')" style="display:none">🔧</button>
-    <button class="btn btn-outline btn-sm" onclick="imprimirPDF()" title="PDF resumen">🖨️</button>
+    <div style="display:flex;gap:5px;flex-wrap:wrap">
+      <button class="filter-chip" id="filtroIVA"  onclick="toggleFiltro('soloConIVA')">Con IVA</button>
+      <button class="filter-chip" id="filtroBase0" onclick="toggleFiltro('soloBase0')">Solo 0%</button>
+      <button class="filter-chip" id="filtroXML"  onclick="toggleFiltro('soloCorregidos')">✓ XML</button>
+    </div>
+    <button class="btn btn-warn btn-sm" id="btnFixTab" onclick="goTab('fix')" style="display:none">🔧 Corregir</button>
+    <button class="btn btn-ghost btn-sm" onclick="imprimirPDF()">🖨️</button>
     <button class="btn btn-success btn-sm" onclick="exportarActivo()">📊</button>
   </div>
-  <div class="content" id="vistaContent">
-    <div class="empty-state"><div class="icon">📋</div><div class="title">Selecciona un archivo</div></div>
+  <div class="panel-scroll" id="vistaContent">
+    <div class="empty">
+      <div class="empty-icon">📋</div>
+      <div class="empty-title">Selecciona un archivo</div>
+    </div>
   </div>
 </div>
 
-<!-- ══ CORREGIR CON XML ══ -->
+<!-- ══════════════════════════════════════════════
+     PANEL: EMITIDOS
+══════════════════════════════════════════════ -->
+<div class="panel" id="panel-emitidos">
+  <div class="toolbar">
+    <button class="btn btn-ghost btn-sm" onclick="goTab('cargar')">← Volver</button>
+    <span class="toolbar-title">📤 Facturas Emitidas</span>
+    <div id="emitidosBadges" style="display:flex;gap:4px;align-items:center"></div>
+    <div style="flex:1"></div>
+    <button class="btn btn-ghost btn-sm" onclick="imprimirPDF('emitidos')">🖨️</button>
+    <button class="btn btn-success btn-sm" onclick="exportarEmitidos()">📊 Excel</button>
+  </div>
+  <div class="panel-scroll" id="emitidosContent">
+    <div class="empty">
+      <div class="empty-icon">📤</div>
+      <div class="empty-title">Sin facturas emitidas</div>
+      <div class="empty-sub">
+        Carga el TXT de <strong>Comprobantes Emitidos</strong> desde el portal SRI.
+      </div>
+      <button class="btn btn-primary" style="margin-top:12px" onclick="goTab('cargar')">📂 Ir a Cargar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PANEL: CORREGIR CON XML
+══════════════════════════════════════════════ -->
 <div class="panel" id="panel-fix">
   <div class="toolbar">
-    <button class="btn btn-outline btn-sm" onclick="goTab('vista')">← Volver</button>
-    <span style="font-size:11px;font-weight:700;color:#92400e">🔧 Corrección con XML</span>
+    <button class="btn btn-ghost btn-sm" onclick="goTab('vista')">← Volver</button>
+    <span class="toolbar-title" style="color:var(--amber)">🔧 Corrección con XML</span>
     <div style="flex:1"></div>
-    <span id="fixContador" style="font-size:11px;color:#6b7280"></span>
+    <span id="fixContador" style="font-size:10px;color:var(--text-muted)"></span>
   </div>
-  <div class="content" id="fixContent">
-    <div class="empty-state"><div class="icon">✅</div><div class="title">No hay facturas para corregir</div></div>
+  <div class="panel-scroll" id="fixContent">
+    <div class="empty">
+      <div class="empty-icon">✅</div>
+      <div class="empty-title">No hay facturas para corregir</div>
+    </div>
   </div>
 </div>
 
-<!-- ══ FORMULARIO 104A ══ -->
+<!-- ══════════════════════════════════════════════
+     PANEL: FORMULARIO 104A
+══════════════════════════════════════════════ -->
 <div class="panel" id="panel-f104">
   <div class="toolbar">
-    <button class="btn btn-outline btn-sm" onclick="goTab('cargar')">← Volver</button>
-    <span style="font-size:11px;font-weight:700">Formulario 104A — Personas Naturales</span>
+    <button class="btn btn-ghost btn-sm" onclick="goTab('cargar')">← Volver</button>
+    <span class="toolbar-title">🧾 Formulario 104A</span>
     <div style="flex:1"></div>
-    <button class="btn btn-outline btn-sm" onclick="imprimirPDF('104a')" title="Exportar PDF">🖨️ PDF</button>
-    <button class="btn btn-success btn-sm" onclick="exportar104AExcel()">📊 → Excel</button>
+    <button class="btn btn-ghost btn-sm" onclick="imprimirPDF('104a')">🖨️ PDF</button>
+    <button class="btn btn-success btn-sm" onclick="exportar104AExcel()">📊 Excel</button>
   </div>
-  <div class="content" id="f104Content">
-    <div class="empty-state"><div class="icon">🧾</div><div class="title">Carga un TXT del SRI primero</div></div>
+  <div class="panel-scroll" id="f104Content">
+    <div class="empty">
+      <div class="empty-icon">🧾</div>
+      <div class="empty-title">Carga un TXT primero</div>
+      <div class="empty-sub">El formulario se llena solo con tus datos del SRI.</div>
+    </div>
   </div>
 </div>
 
-<!-- ══ MESES / HISTÓRICO ══ -->
+<!-- ══════════════════════════════════════════════
+     PANEL: MESES
+══════════════════════════════════════════════ -->
 <div class="panel" id="panel-meses">
   <div class="toolbar">
-    <button class="btn btn-outline btn-sm" onclick="goTab('cargar')">← Volver</button>
-    <span style="font-size:11px;font-weight:700;color:var(--heka-text)">📅 Meses</span>
+    <button class="btn btn-ghost btn-sm" onclick="goTab('cargar')">← Volver</button>
+    <span class="toolbar-title">📅 Histórico mensual</span>
     <div style="flex:1"></div>
-    <button class="btn btn-outline btn-sm" onclick="toggleComparador()" id="btnComparador">⚖️ Comparar</button>
-    <button class="btn btn-heka btn-sm" onclick="exportarResumenMeses()">📊</button>
-    <button class="btn btn-outline btn-sm" onclick="imprimirPDF('meses')">🖨️ PDF</button>
+    <button class="btn btn-ghost btn-sm" onclick="toggleComparador()" id="btnComparador">⚖️ Comparar</button>
+    <button class="btn btn-primary btn-sm" onclick="exportarResumenMeses()">📊</button>
+    <button class="btn btn-ghost btn-sm" onclick="imprimirPDF('meses')">🖨️</button>
   </div>
-  <div id="comparadorPanel" style="display:none;padding:8px 12px;background:#f8faff;border-bottom:1.5px solid var(--heka-border)">
-    <div style="font-size:11px;font-weight:700;color:var(--heka-blue);margin-bottom:6px">⚖️ Comparar dos períodos</div>
+  <div id="comparadorPanel" style="display:none;padding:8px 12px;background:var(--blue-pale);border-bottom:1.5px solid var(--border)">
+    <div style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:6px">⚖️ Comparar dos períodos</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <div><div style="font-size:10px;color:#6b7280;margin-bottom:3px">Período A</div>
-        <select id="selMesA" style="width:100%;border:1.5px solid var(--heka-border);border-radius:6px;padding:5px 8px;font-size:11px" onchange="renderComparador()"><option value="">— selecciona —</option></select></div>
-      <div><div style="font-size:10px;color:#6b7280;margin-bottom:3px">Período B</div>
-        <select id="selMesB" style="width:100%;border:1.5px solid var(--heka-border);border-radius:6px;padding:5px 8px;font-size:11px" onchange="renderComparador()"><option value="">— selecciona —</option></select></div>
+      <div>
+        <div style="font-size:9px;color:var(--text-muted);margin-bottom:3px">Período A</div>
+        <select id="selMesA" style="width:100%;border:1.5px solid var(--border);border-radius:var(--r6);padding:5px 8px;font-size:11px" onchange="renderComparador()"><option value="">— selecciona —</option></select>
+      </div>
+      <div>
+        <div style="font-size:9px;color:var(--text-muted);margin-bottom:3px">Período B</div>
+        <select id="selMesB" style="width:100%;border:1.5px solid var(--border);border-radius:var(--r6);padding:5px 8px;font-size:11px" onchange="renderComparador()"><option value="">— selecciona —</option></select>
+      </div>
     </div>
     <div id="comparadorResult" style="margin-top:8px"></div>
   </div>
-  <div class="content" id="mesesContent">
-    <div class="empty-state"><div class="icon">📅</div><div class="title">Carga archivos TXT de varios meses</div>
-    <div style="font-size:11px;color:#9ca3af">Cada TXT que cargues se acumula aquí para ver el comparativo mensual</div></div>
+  <div class="panel-scroll" id="mesesContent">
+    <div class="empty">
+      <div class="empty-icon">📅</div>
+      <div class="empty-title">Carga archivos de varios meses</div>
+      <div class="empty-sub">Cada TXT que cargues aparece aquí para comparar mes a mes.</div>
+    </div>
   </div>
 </div>
 
-<!-- ══ EXCEL ══ -->
+<!-- ══════════════════════════════════════════════
+     PANEL: EXCEL / EXPORTAR
+══════════════════════════════════════════════ -->
 <div class="panel" id="panel-excel">
   <div class="toolbar">
-    <button class="btn btn-outline btn-sm" onclick="goTab('cargar')">← Volver</button>
-    <span style="font-size:11px;color:#6b7280">Exportar a Excel</span>
+    <button class="btn btn-ghost btn-sm" onclick="goTab('cargar')">← Volver</button>
+    <span class="toolbar-title">📊 Exportar a Excel</span>
   </div>
-  <div class="content">
+  <div class="panel-scroll">
+
     <div class="card">
-      <div class="card-title">⚙️ Opciones</div>
+      <div class="card-header">⚙️ Opciones de exportación</div>
       <label class="check"><input type="checkbox" id="chkFormula" checked> BASE GRAVADA como fórmula =IVA/0.15</label>
       <label class="check"><input type="checkbox" id="chkFormato" checked> Formato moneda en columnas numéricas</label>
-      <label class="check"><input type="checkbox" id="chkPropina" checked> Columna PROPINA (col Q)</label>
-    </div>
-    <div class="card">
-      <div class="card-title">🖨️ Generar PDFs de facturas</div>
-      <p style="font-size:11px;color:#6b7280;margin-bottom:8px">
-        Genera el PDF de cada factura individual desde la tabla de Vista.<br>
-        Las facturas con XML cargado incluyen el detalle completo de productos.
-      </p>
-      <button class="btn btn-heka btn-full" onclick="goTab('vista');mostrarAyudaPDF()">
-        🖨️ Ir a Vista → PDF por factura
-      </button>
+      <label class="check"><input type="checkbox" id="chkPropina" checked> Columna PROPINA (informativa)</label>
     </div>
 
     <div class="card">
-      <div class="card-title">📊 Exportar archivo activo</div>
-      <p style="font-size:11px;color:#6b7280;margin-bottom:8px" id="excelFileLabel">Ningún archivo seleccionado</p>
-      <button class="btn btn-success btn-full" onclick="exportarActivo()">📊 Exportar → hoja de Excel</button>
+      <div class="card-header">📄 Archivo activo</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px" id="excelFileLabel">Ningún archivo seleccionado</div>
+      <button class="btn btn-success btn-full" onclick="exportarActivo()">📊 Exportar archivo activo → Excel</button>
     </div>
+
     <div class="card">
-      <div class="card-title">📚 Exportar todos</div>
+      <div class="card-header">📚 Exportar todos los meses</div>
       <button class="btn btn-primary btn-full" onclick="exportarTodos()">📊 Exportar todos los archivos</button>
     </div>
+
     <div class="card">
-      <div class="card-title">🧾 Exportar Formulario 104A</div>
-      <button class="btn btn-primary btn-full" onclick="exportar104AExcel()">📊 Exportar casilleros 104A</button>
+      <div class="card-header">🧾 Casilleros Formulario 104A</div>
+      <button class="btn btn-primary btn-full" onclick="exportar104AExcel()">📊 Exportar 104A → Excel</button>
     </div>
+
+    <div class="card">
+      <div class="card-header">🖨️ PDFs de facturas</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">
+        Genera el PDF de cada factura desde la pestaña Recibidos — usa el botón 🖨️ en cada fila.
+      </div>
+      <button class="btn btn-ghost btn-full" onclick="goTab('vista');mostrarAyudaPDF()">
+        🖨️ Ir a Recibidos → PDF por factura
+      </button>
+    </div>
+
     <div id="excelMsg" style="display:none;margin-top:8px"></div>
   </div>
 </div>
 
+<!-- ══ TOAST ══ -->
+<div id="toast"></div>
+
+<!-- ══ JS ══ -->
 <script>
+
 // ══════════════════════════════════════════════════════════
 // ESTADO GLOBAL
 // ══════════════════════════════════════════════════════════
@@ -2743,6 +3288,7 @@ function cerrarTutorial(){
   document.getElementById('tut-overlay')?.remove();
   try{localStorage.setItem('heka_tutorial_done','1');}catch(e){}
 }
+
 
 </script>
 </body>
