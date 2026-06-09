@@ -817,13 +817,21 @@ function clasificarFila(r){
     }
   }
 
+  // Detectar si es feriado con IVA 8% turístico
+  const fecha=(r.FECHA_EMISION||r.FECHA_AUTORIZACION||'');
+  const tasaCalc=iva>0&&baseGravada>0?Math.round((iva/baseGravada)*100):iva>0&&valSin>0?Math.round((iva/valSin)*100):0;
+  const esIVA8=tasaCalc===8||(esFeriado8(fecha)&&esTuristico(r.RAZON_SOCIAL_EMISOR||'')&&iva>0);
+  const tipoTarifa=iva===0?'0%':esIVA8?'8%':tasaCalc===5?'5%':'15%';
+
   return{
     ...r,
     baseGravada: parseFloat(baseGravada.toFixed(2)),
     base0:       parseFloat(base0.toFixed(2)),
     propina:     parseFloat((propina||0).toFixed(2)),
-    ice:         0, // el ICE real se obtiene del XML
-    baseExenta, baseNoObje, iva, total, valSin, alerta, corregido:false
+    ice:         0,
+    baseExenta, baseNoObje, iva, total, valSin,
+    alerta, corregido:false,
+    esIVA8, tipoTarifa, tasaCalc,
   };
 }
 
@@ -1165,6 +1173,15 @@ function renderTXTVista(p){
     html+=`<div class="alert alert-info">ℹ️ <strong>${notasCredito.length} nota${notasCredito.length>1?'s':''} de crédito detectada${notasCredito.length>1?'s':''}.</strong> Restan de las bases. Se muestran en la tabla y se exportan separadas en la hoja Excel.</div>`;
   }
 
+  // Aviso de feriados IVA 8%
+  const conIVA8 = rowsClasif.filter(r=>r.esIVA8);
+  if(conIVA8.length>0){
+    html+=`<div class="alert" style="background:#fffbeb;border-color:#f59e0b;color:#92400e">
+      🏖 <strong>${conIVA8.length} factura${conIVA8.length>1?'s':''} con IVA al 8%</strong> (feriado turístico o tarifa especial).
+      La base gravada se registra en el casillero 500. El IVA pagado va en 501.
+    </div>`;
+  }
+
   if(pendientes.length){
     html+=`<div class="alert alert-warn" style="cursor:pointer" onclick="goTab('fix')">
       ⚠️ <strong>${pendientes.length} factura${pendientes.length>1?'s':''} con bases ambiguas.</strong>
@@ -1192,7 +1209,7 @@ function renderTXTVista(p){
         <th style="text-align:right">ICE</th>
         <th style="text-align:right">Total</th>
       </tr></thead>
-      <tbody>${rowsClasif.slice(0,150).map((r,idx)=>`<tr style="${r.corregido?'background:#f0fdf4':r.alerta&&!r.corregido&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'?'background:#fffbeb':''}">
+      <tbody>${rowsClasif.slice(0,150).map((r,idx)=>`<tr style="${r.corregido?'background:#f0fdf4':r.esIVA8?'background:#fffbeb':r.alerta&&!r.corregido&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'?'background:#fff3cd':''}">
         <td style="max-width:90px;overflow:hidden;text-overflow:ellipsis;font-size:10px">${r.RAZON_SOCIAL_EMISOR||''}</td>
         <td style="font-size:9px;white-space:nowrap">
           <div style="font-family:monospace">${r.SERIE_COMPROBANTE||''}</div>
@@ -1208,7 +1225,7 @@ function renderTXTVista(p){
         <td style="font-size:10px">${r.FECHA_EMISION||''}</td>
         <td class="td-num td-green">${r.baseGravada>0?'$'+r.baseGravada.toFixed(2):''}</td>
         <td class="td-num">${r.base0>0?'$'+r.base0.toFixed(2):''}</td>
-        <td class="td-num td-red">${r.iva>0?'$'+r.iva.toFixed(2):''}</td>
+        <td class="td-num" style="color:${r.esIVA8?'#d97706':'var(--heka-red)'};font-weight:${r.esIVA8?'800':'400'}">${r.iva>0?'$'+r.iva.toFixed(2)+( r.esIVA8?' <span title=\"IVA 8% Feriado Turístico\" style=\"background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:3px;padding:0 3px;font-size:8px;font-weight:800;vertical-align:middle\">8% 🏖</span>':'' ):''}</td>
         <td class="td-num" style="color:#c2410c">${r.propina>0?'$'+r.propina.toFixed(2):''}</td>
         <td class="td-num" style="color:#7e22ce">${r.ice>0?'$'+r.ice.toFixed(2):''}</td>
         <td class="td-num" style="font-weight:700">$${r.total.toFixed(2)}</td>
@@ -2242,7 +2259,7 @@ function renderEmitidos(){
         <td style="font-size:10px">${r.FECHA_EMISION||''}</td>
         <td class="td-num td-green">${r.base15>0?'$'+r.base15.toFixed(2):''}</td>
         <td class="td-num">${r.base0>0?'$'+r.base0.toFixed(2):''}</td>
-        <td class="td-num td-red">${r.iva>0?'$'+r.iva.toFixed(2):''}</td>
+        <td class="td-num" style="color:${r.esIVA8?'#d97706':'var(--heka-red)'};font-weight:${r.esIVA8?'800':'400'}">${r.iva>0?'$'+r.iva.toFixed(2)+( r.esIVA8?' <span title=\"IVA 8% Feriado Turístico\" style=\"background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:3px;padding:0 3px;font-size:8px;font-weight:800;vertical-align:middle\">8% 🏖</span>':'' ):''}</td>
         <td class="td-num" style="font-weight:700">$${r.total.toFixed(2)}</td>
       </tr>`).join('')}</tbody>
       <tfoot><tr style="background:var(--heka-light)">
@@ -2457,6 +2474,24 @@ function showToast(msg,tipo){
 // ══════════════════════════════════════════════════════════
 const STORAGE_KEY='heka_sri_meses';
 const MESES_ES=['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+// Feriados con IVA 8% turístico Ecuador (solo para establecimientos con registro turístico)
+const FERIADOS_IVA8={
+  '01/01/2026':1,'02/01/2026':1,'03/01/2026':1,'04/01/2026':1, // Año Nuevo DE-271
+  '28/02/2026':1,'01/03/2026':1,'02/03/2026':1,'03/03/2026':1, // Carnaval DE-304
+  '02/04/2026':1,'03/04/2026':1,'04/04/2026':1,'05/04/2026':1, // Semana Santa DE-348
+  '30/04/2026':1,'01/05/2026':1,'02/05/2026':1,'03/05/2026':1, // 1 Mayo DE-368
+  '01/01/2025':1,'02/01/2025':1,'03/01/2025':1,'04/01/2025':1,
+  '01/03/2025':1,'02/03/2025':1,'03/03/2025':1,'04/03/2025':1,
+  '17/04/2025':1,'18/04/2025':1,'19/04/2025':1,'20/04/2025':1,
+  '01/05/2025':1,'02/05/2025':1,'03/05/2025':1,'04/05/2025':1,
+};
+const EMISORES_TUR=['RESTAURANTE','HORPAXI','HOTEL','HOSTAL','RESORT','TURISMO','GASTRONOMIA',
+  'POKE','SUSHI','PIZZA','BURGER','CAFE','CAFETERIA','BISTRO','GRILL','BAR ',
+  'CANTINA','COMEDOR','CHIFA','MARISQUERIA','PANADERIA','HELADERIA','CEVICHERIA',
+  'TIPTI','RAPPI','GLOVO','PEDIDOS','ATIMASA'];
+function esFeriado8(f){return !!FERIADOS_IVA8[f];}
+function esTuristico(rs){const r=(rs||'').toUpperCase();return EMISORES_TUR.some(k=>r.includes(k));}
 
 function extraerMesKey(parsed,nombre){
   const m=(nombre||'').match(/(\d{4})[_\-\.](\d{2})/) || (nombre||'').match(/(\d{2})[_\-\.](\d{4})/);
