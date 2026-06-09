@@ -703,23 +703,40 @@ function goTab(t) {
 function actualizarBadgeFix() {
   const a = archivos.find(x=>x.id===activoId);
   if(!a?.parsed?.rowsClasif) return;
-  // Solo contar las MIXTAS reales que necesitan XML, no las de propina/ICE
   const pendientes = a.parsed.rowsClasif.filter(r=>
     r.alerta && r.alerta!=='sin datos' &&
     r.alerta!=='propina/ICE: no declara en IVA' &&
     !r.corregido
   );
+
+  // Badge en tab Corregir
   const tab = document.getElementById('tab-fix');
-  const existente = tab.querySelector('.badge-pill');
-  if(existente) existente.remove();
-  if(pendientes.length>0){
-    const pill = document.createElement('span');
-    pill.className='badge-pill'; pill.textContent=pendientes.length;
-    tab.appendChild(pill);
-    document.getElementById('btnFixTab').style.display='';
-  } else {
-    document.getElementById('btnFixTab').style.display='none';
+  if(tab){
+    const existente = tab.querySelector('.badge-pill');
+    if(existente) existente.remove();
+    if(pendientes.length>0){
+      const pill = document.createElement('span');
+      pill.className='badge-pill';
+      pill.textContent=pendientes.length;
+      tab.appendChild(pill);
+    }
   }
+
+  // Botón Corregir en toolbar de Vista
+  const btnFix = document.getElementById('btnFixTab');
+  if(btnFix){
+    if(pendientes.length>0){
+      btnFix.style.display='';
+      btnFix.textContent=`🔧 Corregir (${pendientes.length})`;
+      btnFix.style.cssText='background:#92400e;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:10px;font-weight:700;cursor:pointer';
+    } else {
+      btnFix.style.display='none';
+    }
+  }
+
+  // Contador en panel Corregir
+  const cont = document.getElementById('fixContador');
+  if(cont) cont.textContent = pendientes.length>0 ? `${pendientes.length} pendientes` : '✅ Todo listo';
 }
 
 // ══════════════════════════════════════════════════════════
@@ -874,10 +891,23 @@ function procesarArchivo(nombre, content, size) {
     const poolCount = document.getElementById('xmlPoolCount');
     if(poolCount) poolCount.style.display = 'none';
     renderFileList();
-    renderVista(a); actualizarBadgeFix(); goTab('vista');
+
+    // Ir a Vista y mostrar alertas
+    goTab('vista');
+    renderVista(a);
+    actualizarBadgeFix();
+
     if(parsed?.totales) guardarMesEnStorage(parsed, nombre);
-    if(xmlAplicados > 0)
-      showToast(`✅ TXT cargado · ${xmlAplicados} facturas corregidas con XML`, 'success');
+
+    // Toast con resumen claro
+    const nRows = parsed?.nFilas||0;
+    const nPend = parsed?.rowsClasif?.filter(r=>r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'&&!r.corregido).length||0;
+    const nIVA8 = parsed?.rowsClasif?.filter(r=>r.es530).length||0;
+    let msg = `✅ ${nRows} comprobantes cargados`;
+    if(nPend>0) msg += ` · ⚠ ${nPend} necesitan XML`;
+    if(nIVA8>0) msg += ` · 🏖 ${nIVA8} IVA 8%`;
+    if(xmlAplicados>0) msg += ` · ${xmlAplicados} ya corregidas con XML`;
+    showToast(msg, nPend>0?'warn':'success');
   }
 }
 
@@ -1008,7 +1038,9 @@ function renderFileList(){
     const pendientes=a.parsed?.rowsClasif?.filter(r=>r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'&&!r.corregido).length||0;
     const b1='<span class="badge badge-blue">TXT</span>';
     const b2=a.parsed?.nFilas?`<span class="badge badge-gray">${a.parsed.nFilas} filas</span>`:'';
-    const bwarn=pendientes>0?`<span class="badge badge-yellow">⚠ ${pendientes}</span>`:'';
+    const bwarn=pendientes>0
+      ?`<span style="background:#92400e;color:#fff;border-radius:4px;padding:1px 7px;font-size:9px;font-weight:800;cursor:pointer" onclick="event.stopPropagation();goTab('fix')">⚠ ${pendientes} pendientes</span>`
+      :'';
     const berr=a.error?'<span class="badge badge-red">ERR</span>':'';
     return `<div class="file-item ${a.id===activoId?'active':''}" onclick="selFile(${a.id})">
       <div class="file-name">${a.nombre}</div>
@@ -1132,7 +1164,7 @@ function clasificarFila(r){
 }
 
 function calcularTotales(rows){
-  let tIVA=0,tBaseG=0,tBase0=0,tProp=0,tTotal=0,tExenta=0,tNoObje=0;
+  let tIVA=0,tBaseG=0,tBase0=0,tProp=0,tTotal=0,tExenta=0,tNoObje=0,tB530=0,tI530=0;
   rows.forEach(r=>{
     tIVA   += r.iva||0;
     tBaseG += r.baseGravada||0;
@@ -1141,6 +1173,7 @@ function calcularTotales(rows){
     tTotal += r.total||0;
     tExenta+= r.baseExenta||0;
     tNoObje+= r.baseNoObje||0;
+    if(r.es530){ tB530 += r.baseGravada||0; tI530 += r.iva||0; }
   });
   // Calcular c609 desde XMLs de retención cargados en el pool
   const c609 = calcularRetencioneIVA();
@@ -1149,6 +1182,8 @@ function calcularTotales(rows){
     totalBaseGrav: +tBaseG.toFixed(2),
     totalBase0:    +tBase0.toFixed(2),
     totalPropina:  +tProp.toFixed(2),
+    totalBase530:  +tB530.toFixed(2),
+    totalIVA530:   +tI530.toFixed(2),
     totalImporte:  +tTotal.toFixed(2),
     totalExenta:   +tExenta.toFixed(2),
     totalNoObje:   +tNoObje.toFixed(2),
@@ -1479,9 +1514,13 @@ function renderTXTVista(p){
   }
 
   if(pendientes.length){
-    html+=`<div class="alert alert-warn" style="cursor:pointer" onclick="goTab('fix')">
-      ⚠️ <strong>${pendientes.length} factura${pendientes.length>1?'s':''} con bases ambiguas.</strong>
-      Toca aquí → pestaña 🔧 Corregir para subir los XML y resolverlas automáticamente.
+    html+=`<div onclick="goTab('fix')" style="background:#7c2d12;color:#fff;border-radius:8px;padding:12px 14px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:10px" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+      <div style="font-size:22px;flex-shrink:0">⚠️</div>
+      <div style="flex:1">
+        <div style="font-weight:800;font-size:12px;margin-bottom:3px">${pendientes.length} factura${pendientes.length>1?'s':''} necesitan XML para ser exactas</div>
+        <div style="font-size:10px;opacity:.85;line-height:1.5">${pendientes.slice(0,3).map(r=>r.RAZON_SOCIAL_EMISOR||r.SERIE_COMPROBANTE||'').filter(Boolean).join(' · ')}${pendientes.length>3?' · +'+( pendientes.length-3)+' más':''}</div>
+      </div>
+      <div style="background:rgba(255,255,255,.2);border-radius:5px;padding:5px 12px;font-size:11px;font-weight:700;flex-shrink:0;white-space:nowrap">Corregir →</div>
     </div>`;
   }
   if(corregidas.length){
@@ -1505,7 +1544,7 @@ function renderTXTVista(p){
         <th style="text-align:right">ICE</th>
         <th style="text-align:right">Total</th>
       </tr></thead>
-      <tbody>${rowsClasif.slice(0,150).map((r,idx)=>`<tr style="${r.corregido?'background:#f0fdf4':r.esIVA8?'background:#fffbeb':r.alerta&&!r.corregido&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'?'background:#fff3cd':''}">
+      <tbody>${rowsClasif.slice(0,150).map((r,idx)=>`<tr style="${r.esNC?'background:#fef2f2':r.corregido?'background:#f0fdf4':r.es530?'background:#fffbeb':r.alerta&&!r.corregido&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'?'background:#fff3cd':''}">
         <td style="max-width:90px;overflow:hidden;text-overflow:ellipsis;font-size:10px">${r.RAZON_SOCIAL_EMISOR||''}</td>
         <td style="font-size:9px;white-space:nowrap">
           <div style="font-family:monospace">${r.SERIE_COMPROBANTE||''}</div>
@@ -1592,8 +1631,20 @@ function render104A(){
 
     <div class="card" style="padding:0;margin-top:10px">
       <div style="padding:8px 14px;background:#15803d;border-radius:7px 7px 0 0"><span style="color:#fff;font-size:11px;font-weight:700">📥 ADQUISICIONES Y PAGOS</span><span style="color:#bbf7d0;font-size:10px;margin-left:6px">(del TXT${pendientes.length===0?' + XML':''})</span></div>
-      ${cf('500','Adquisiciones gravadas tarifa 15% — base imponible',t.c500||0,'green')}
-      ${cf('501','IVA pagado en adquisiciones tarifa 15%',t.c501||0,'green',false,true)}
+      ${cf('500','Adquisiciones gravadas tarifa 15% — base',(t.c500||0)-(t.totalBase530||0),'green')}
+      ${cf('501','IVA pagado en adquisiciones 15%',(t.c501||0)-(t.totalIVA530||0),'green',false,true)}
+      ${(t.totalBase530||0)>0?`<div class="casillero-row" style="background:#fffbeb">
+          <div class="cas-num cas-num-amber">530</div>
+          <div class="cas-desc">Adquisiciones tarifa variable (IVA 8%) — BASE
+            <small>Restaurantes/hoteles en feriados con decreto ejecutivo: ATIMASA, MONKEYBOLON, etc.</small>
+          </div>
+          <div class="cas-val" style="color:#d97706">$${(t.totalBase530).toFixed(2)}</div>
+        </div>
+        <div class="casillero-row" style="background:#fffbeb">
+          <div class="cas-num cas-num-amber">522</div>
+          <div class="cas-desc">IVA pagado tarifa variable (8% feriados)</div>
+          <div class="cas-val" style="color:#d97706">$${(t.totalIVA530).toFixed(2)}</div>
+        </div>`:''}
       ${cf('507','Adquisiciones y pagos tarifa 0%',t.c507||0,'gray')}
       ${cf('509','Adquisiciones no objeto de IVA',t.c509||0,t.c509>0?'purple':'gray',t.c509===0)}
       ${cf('510','Adquisiciones exentas de IVA',t.c510||0,t.c510>0?'purple':'gray',t.c510===0)}
