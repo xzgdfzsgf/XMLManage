@@ -189,6 +189,25 @@ html,body{font-family:var(--sans);font-size:12px;color:var(--ink);background:var
 .stat-sub{font-size:9px;color:var(--faint);margin-top:2px}
 
 /* === DROPZONE === */
+/* Legacy alias used in renderFixPanel */
+.dropzone{
+  border:1.5px dashed var(--line2);
+  border-radius:var(--r);
+  padding:14px 12px;
+  text-align:center;
+  cursor:pointer;
+  transition:all .15s;
+  background:var(--card);
+  font-size:10px;
+  color:var(--muted);
+  margin-bottom:8px;
+  line-height:1.7;
+}
+.dropzone:hover,.dropzone.drag{ border-color:var(--accent);background:var(--acc-bg); }
+.dz-xml{ border-color:var(--warn-line);background:var(--warn-bg); }
+.dz-xml:hover,.dz-xml.drag{ border-color:var(--warn); }
+
+/* === DROPZONE === */
 .drop{
   border:1.5px dashed var(--line2);
   border-radius:var(--rl);
@@ -1473,12 +1492,17 @@ function onFilesXml(files){
 // RENDER VISTA
 // ══════════════════════════════════════════════════════════
 function renderVista(a){
-  const vc=document.getElementById('vistaContent'),vb=document.getElementById('vistaBadges');
-  if(a.error){vc.innerHTML=`<div class="alert alert-error">✗ ${a.error}</div>`;vb.innerHTML='';return;}
-  if(!a.parsed){vc.innerHTML='<div class="empty-state"><div>Sin datos</div></div>';return;}
-  const pendientes=a.parsed.rowsClasif?.filter(r=>r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'&&!r.corregido)||[];
-  vb.innerHTML=`<span class="badge badge-blue">TXT</span><span class="badge badge-gray">${a.parsed.nFilas} registros</span>${pendientes.length>0?`<span class="badge badge-yellow">⚠ ${pendientes.length} por corregir</span>`:'<span class="badge badge-green">✅ Todo correcto</span>'}`;
-  vc.innerHTML=renderTXTVista(a.parsed);
+  const vc = document.getElementById('vistaContent');
+  if(!vc) { console.error('vistaContent not found'); return; }
+  if(a.error){
+    vc.innerHTML = `<div class="alert a-err">✗ ${a.error}</div>`;
+    return;
+  }
+  if(!a.parsed){
+    vc.innerHTML = '<div class="empty"><div class="empty-ico">📋</div><div class="empty-t">Sin datos</div></div>';
+    return;
+  }
+  vc.innerHTML = renderTXTVista(a.parsed);
 }
 
 function renderTXTVista(p){
