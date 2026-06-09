@@ -2,922 +2,673 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Gestor SRI · HEKA</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Gestor SRI Ecuador</title>
 <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
 <style>
-/* ═══════════════════════════════════════════════════════════
-   HEKA GESTOR SRI — Design System v2
-   Objetivo: claro, guiado, para no contadores
-   ═══════════════════════════════════════════════════════════ */
-
+/* === DESIGN TOKENS === */
 :root {
-  /* Paleta HEKA */
-  --blue:       #258dd6;
-  --blue-dark:  #1a6fb0;
-  --blue-deep:  #0f4880;
-  --blue-light: #e8f4fd;
-  --blue-pale:  #f0f8ff;
-
-  /* Semáforo de estado */
-  --green:      #16a34a;
-  --green-bg:   #f0fdf4;
-  --green-border:#bbf7d0;
-  --red:        #dc2626;
-  --red-bg:     #fef2f2;
-  --red-border: #fecaca;
-  --amber:      #d97706;
-  --amber-bg:   #fffbeb;
-  --amber-border:#fde68a;
-  --yellow-bg:  #fef9c3;
-
-  /* Neutros */
-  --surface:    #f6f8fb;
-  --card:       #ffffff;
-  --border:     #dce8f4;
-  --border-soft:#eef4fa;
-  --text:       #0f172a;
-  --text-muted: #64748b;
-  --text-light: #94a3b8;
-
-  /* Tipografía */
-  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --mono: 'Consolas', 'Cascadia Code', monospace;
-
-  /* Espaciado */
-  --r4: 4px;  --r6: 6px;  --r8: 8px;
-  --r10: 10px; --r12: 12px; --r16: 16px;
+  --ink:      #0f1117;
+  --ink2:     #3a3d45;
+  --muted:    #6b7280;
+  --faint:    #9ca3af;
+  --surface:  #f9fafb;
+  --card:     #ffffff;
+  --line:     #e5e7eb;
+  --line2:    #d1d5db;
+  --accent:   #0d6b4f;
+  --accent2:  #0a5540;
+  --acc-bg:   #ecfdf5;
+  --acc-mid:  #6ee7b7;
+  --warn:     #b45309;
+  --warn-bg:  #fffbeb;
+  --warn-line:#fde68a;
+  --danger:   #991b1b;
+  --danger-bg:#fef2f2;
+  --danger-line:#fecaca;
+  --info:     #1d4ed8;
+  --info-bg:  #eff6ff;
+  --info-line:#bfdbfe;
+  --amber:    #d97706;
+  --stamp:    #0f1117;
+  --r:        6px;
+  --rl:       10px;
+  --mono:     'Consolas','Cascadia Code','Courier New',monospace;
+  --sans:     'Segoe UI',system-ui,-apple-system,sans-serif;
 }
 
-/* Reset */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: var(--surface); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: var(--blue); }
+/* === RESET === */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:var(--sans);font-size:12px;color:var(--ink);background:var(--surface);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-track{background:var(--surface)}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:var(--muted)}
 
-html, body {
-  font-family: var(--font);
-  font-size: 13px;
-  color: var(--text);
-  background: var(--surface);
-  height: 100vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+/* === HEADER — stripped, typographic === */
+.hdr{
+  background:var(--card);
+  border-bottom:1.5px solid var(--ink);
+  padding:0 14px;
+  height:44px;
+  display:flex;align-items:center;gap:10px;
+  flex-shrink:0;
 }
-
-/* ── HEADER ── */
-.hdr {
-  background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%);
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-  box-shadow: 0 2px 12px rgba(15,72,128,.25);
+.hdr-logo{
+  width:24px;height:24px;flex-shrink:0;
+  border-radius:4px;overflow:hidden;
 }
-.hdr-logo {
-  width: 32px; height: 32px;
-  background: rgba(255,255,255,.15);
-  border-radius: 8px;
-  padding: 3px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
+.hdr-logo img{width:100%;height:100%;object-fit:cover}
+.hdr-wordmark{
+  font-size:13px;font-weight:700;letter-spacing:-.3px;color:var(--ink);
 }
-.hdr-logo img { width: 26px; height: 26px; object-fit: contain; }
-.hdr-text { flex: 1; min-width: 0; }
-.hdr-name {
-  font-size: 13px; font-weight: 800;
-  color: #fff; letter-spacing: .3px;
-  line-height: 1.2;
-}
-.hdr-sub {
-  font-size: 10px;
-  color: rgba(255,255,255,.75);
-  margin-top: 1px;
+.hdr-sep{color:var(--line2);margin:0 2px;font-size:11px}
+.hdr-sub{font-size:10px;color:var(--muted);letter-spacing:.2px}
+.hdr-spacer{flex:1}
+.hdr-badge{
+  font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  color:var(--accent);border:1.5px solid var(--accent);
+  padding:2px 7px;border-radius:3px;
 }
 
-/* ── TABS ── */
-.tabs {
-  display: flex;
-  background: var(--card);
-  border-bottom: 2px solid var(--border-soft);
-  flex-shrink: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
+/* === TABS === */
+.tabs{
+  display:flex;
+  background:var(--card);
+  border-bottom:1px solid var(--line);
+  flex-shrink:0;overflow-x:auto;
+  scrollbar-width:none;
 }
-.tabs::-webkit-scrollbar { display: none; }
-
-.tab {
-  flex: 1;
-  min-width: 38px;
-  padding: 9px 4px 8px;
-  border: none;
-  background: none;
-  font-family: var(--font);
-  font-size: 10px;
-  color: var(--text-muted);
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
-  transition: all .15s;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  position: relative;
-  white-space: nowrap;
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  flex:1;min-width:36px;
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:8px 4px 7px;
+  border:none;background:none;
+  font-family:var(--sans);font-size:9px;font-weight:500;color:var(--muted);
+  cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;
+  transition:color .12s,border-color .12s;
+  position:relative;white-space:nowrap;
 }
-.tab .tab-icon { font-size: 14px; line-height: 1; }
-.tab .tab-label { font-size: 9px; font-weight: 500; }
-.tab:hover { color: var(--blue); background: var(--blue-pale); }
-.tab.active {
-  color: var(--blue);
-  border-bottom-color: var(--blue);
-  font-weight: 700;
-  background: var(--blue-pale);
-}
-.tab .badge-pill {
-  position: absolute;
-  top: 4px; right: 4px;
-  background: var(--red);
-  color: #fff;
-  border-radius: 99px;
-  font-size: 8px;
-  padding: 0 4px;
-  font-weight: 800;
-  min-width: 14px;
-  text-align: center;
-  line-height: 14px;
-  height: 14px;
+.tab-icon{font-size:15px;line-height:1}
+.tab:hover{color:var(--ink);background:var(--surface)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:700;background:var(--acc-bg)}
+.tab .badge-pill{
+  position:absolute;top:3px;right:3px;
+  background:var(--danger);color:#fff;
+  border-radius:99px;font-size:8px;padding:0 4px;
+  font-weight:800;min-width:14px;text-align:center;line-height:15px;height:15px;
 }
 
-/* ── PANELS ── */
-.panel { display: none; flex-direction: column; flex: 1; overflow: hidden; }
-.panel.visible { display: flex; }
-.panel-scroll { flex: 1; overflow-y: auto; padding: 12px; }
+/* === PANELS === */
+.panel{display:none;flex-direction:column;flex:1;overflow:hidden}
+.panel.visible{display:flex}
+.pscroll{flex:1;overflow-y:auto;padding:12px}
 
-/* ── PROGRESS STRIP ── */
-.progress-strip {
-  display: none;
-  background: var(--blue);
-  color: #fff;
-  padding: 6px 14px;
-  font-size: 11px;
-  font-weight: 600;
-  flex-shrink: 0;
-  animation: pulse .8s infinite alternate;
-}
-@keyframes pulse { from { opacity: .85; } to { opacity: 1; } }
-
-/* ── TOOLBAR ── */
-.toolbar {
-  display: flex;
-  gap: 6px;
-  padding: 8px 12px;
-  background: var(--card);
-  border-bottom: 1.5px solid var(--border-soft);
-  flex-wrap: wrap;
-  align-items: center;
-  flex-shrink: 0;
-}
-.toolbar-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text);
+/* === PROGRESS === */
+.progress-strip{
+  display:none;
+  background:var(--ink);color:#fff;
+  padding:5px 14px;font-size:10px;font-weight:600;
+  flex-shrink:0;letter-spacing:.3px;
 }
 
-/* ── BUTTONS ── */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: none;
-  border-radius: var(--r8);
-  padding: 6px 12px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: var(--font);
-  transition: all .15s;
-  white-space: nowrap;
-  line-height: 1.3;
+/* === TOOLBAR === */
+.tb{
+  display:flex;gap:5px;padding:7px 12px;
+  background:var(--card);
+  border-bottom:1px solid var(--line);
+  flex-wrap:wrap;align-items:center;flex-shrink:0;
 }
-.btn-sm { padding: 5px 10px; font-size: 10px; }
-.btn-full { width: 100%; justify-content: center; }
-.btn-primary { background: var(--blue); color: #fff; box-shadow: 0 1px 4px rgba(37,141,214,.3); }
-.btn-primary:hover { background: var(--blue-dark); transform: translateY(-1px); box-shadow: 0 3px 8px rgba(37,141,214,.4); }
-.btn-success { background: var(--green); color: #fff; }
-.btn-success:hover { background: #15803d; }
-.btn-warn { background: var(--amber); color: #fff; }
-.btn-ghost { background: var(--card); border: 1.5px solid var(--border); color: var(--text-muted); }
-.btn-ghost:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-pale); }
-.btn-danger { background: var(--red); color: #fff; }
-.btn-icon-only { padding: 6px 8px; }
+.tb-title{font-size:11px;font-weight:700;color:var(--ink)}
+.tb-sep{flex:1}
 
-/* ── CARDS ── */
-.card {
-  background: var(--card);
-  border: 1.5px solid var(--border-soft);
-  border-radius: var(--r12);
-  padding: 12px 14px;
-  margin-bottom: 10px;
-  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+/* === BUTTONS === */
+.btn{
+  display:inline-flex;align-items:center;gap:4px;
+  border:1.5px solid var(--line2);border-radius:var(--r);
+  padding:5px 10px;font-size:10px;font-weight:600;
+  cursor:pointer;font-family:var(--sans);
+  background:var(--card);color:var(--ink2);
+  transition:all .12s;white-space:nowrap;
 }
-.card-header {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .6px;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.card-header-accent {
-  background: linear-gradient(135deg, var(--blue), var(--blue-dark));
-  color: #fff;
-  padding: 9px 14px;
-  border-radius: var(--r10) var(--r10) 0 0;
-  font-size: 11px;
-  font-weight: 700;
-  margin: -12px -14px 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.card-header-green {
-  background: linear-gradient(135deg, var(--green), #15803d);
-  color: #fff;
-  padding: 9px 14px;
-  border-radius: var(--r10) var(--r10) 0 0;
-  font-size: 11px;
-  font-weight: 700;
-  margin: -12px -14px 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.card-header-dark {
-  background: linear-gradient(135deg, #1e3a5f, #0f2040);
-  color: #fff;
-  padding: 9px 14px;
-  border-radius: var(--r10) var(--r10) 0 0;
-  font-size: 11px;
-  font-weight: 700;
-  margin: -12px -14px 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+.btn:hover{border-color:var(--ink);color:var(--ink);background:var(--surface)}
+.btn-sm{padding:4px 8px;font-size:10px}
+.btn-full{width:100%;justify-content:center}
+.btn-solid{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn-solid:hover{background:var(--ink2);color:#fff}
+.btn-green{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-green:hover{background:var(--accent2);color:#fff}
+.btn-warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-line)}
+.btn-warn:hover{background:var(--warn);color:#fff}
+.btn-ghost{background:transparent;border-color:var(--line2);color:var(--muted)}
+.btn-ghost:hover{color:var(--ink);border-color:var(--ink)}
 
-/* ── STAT CHIPS ── */
-.stats-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 12px;
+/* === CARDS === */
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--rl);
+  padding:12px 14px;
+  margin-bottom:10px;
 }
-.stats-row-3 { grid-template-columns: 1fr 1fr 1fr; }
-.stat-chip {
-  background: var(--card);
-  border: 1.5px solid var(--border-soft);
-  border-radius: var(--r10);
-  padding: 10px 12px;
-  text-align: center;
+.card-tight{padding:0;overflow:hidden}
+.card-head{
+  font-size:9px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.7px;color:var(--muted);
+  margin-bottom:8px;
 }
-.stat-chip.accent { border-color: var(--blue); background: var(--blue-pale); }
-.stat-chip.green  { border-color: var(--green-border); background: var(--green-bg); }
-.stat-chip.red    { border-color: var(--red-border); background: var(--red-bg); }
-.stat-chip.amber  { border-color: var(--amber-border); background: var(--amber-bg); }
-.stat-label { font-size: 9px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 3px; }
-.stat-val   { font-size: 17px; font-weight: 800; font-family: var(--mono); line-height: 1.2; }
-.stat-val.blue  { color: var(--blue); }
-.stat-val.green { color: var(--green); }
-.stat-val.red   { color: var(--red); }
-.stat-val.amber { color: var(--amber); }
+.band{
+  padding:8px 14px;
+  border-bottom:1px solid var(--line);
+  font-size:10px;font-weight:700;color:var(--ink);
+  display:flex;align-items:center;gap:8px;
+  letter-spacing:.2px;
+}
+.band-green{background:var(--acc-bg);border-bottom-color:var(--acc-mid)}
+.band-dark{background:var(--ink);color:#fff}
+.band-warn{background:var(--warn-bg);border-bottom-color:var(--warn-line)}
 
-/* ── DROPZONE ── */
-.drop {
-  border: 2px dashed var(--border);
-  border-radius: var(--r12);
-  padding: 20px 14px;
-  text-align: center;
-  cursor: pointer;
-  transition: all .2s;
-  background: var(--card);
-  margin-bottom: 10px;
+/* === STAT GRID === */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+.stats-3{grid-template-columns:1fr 1fr 1fr}
+.stat{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:var(--r);
+  padding:9px 11px;
 }
-.drop:hover, .drop.drag {
-  border-color: var(--blue);
-  background: var(--blue-pale);
-}
-.drop.xml-drop { border-color: var(--amber-border); background: var(--amber-bg); }
-.drop.xml-drop:hover { border-color: var(--amber); }
-.drop-icon { font-size: 28px; margin-bottom: 6px; }
-.drop-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
-.drop-hint  { font-size: 10px; color: var(--text-muted); line-height: 1.6; }
-.drop input { display: none; }
+.stat-label{font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.stat-val{font-size:18px;font-weight:700;font-family:var(--mono);line-height:1.1}
+.stat-val.green{color:var(--accent)}
+.stat-val.red{color:var(--danger)}
+.stat-val.warn{color:var(--warn)}
+.stat-val.blue{color:var(--info)}
+.stat-val.ink{color:var(--ink)}
+.stat-sub{font-size:9px;color:var(--faint);margin-top:2px}
 
-/* ── FILE LIST ── */
-.file-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--border-soft);
-  cursor: pointer;
-  transition: all .12s;
-  border-left: 3px solid transparent;
+/* === DROPZONE === */
+.drop{
+  border:1.5px dashed var(--line2);
+  border-radius:var(--rl);
+  padding:20px 12px;
+  text-align:center;cursor:pointer;
+  transition:all .15s;
+  background:var(--card);
+  margin-bottom:8px;
 }
-.file-item:hover { background: var(--blue-pale); }
-.file-item.active { border-left-color: var(--blue); background: var(--blue-pale); }
-.file-item-icon { font-size: 18px; flex-shrink: 0; }
-.file-item-body { flex: 1; min-width: 0; }
-.file-item-name { font-size: 11px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.file-item-meta { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
-.file-item-badges { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
+.drop:hover,.drop.drag{border-color:var(--accent);background:var(--acc-bg)}
+.drop-xml{border-color:var(--warn-line);background:var(--warn-bg)}
+.drop-xml:hover,.drop-xml.drag{border-color:var(--warn)}
+.drop-ico{font-size:26px;margin-bottom:6px;color:var(--muted)}
+.drop-t{font-size:12px;font-weight:700;color:var(--ink);margin-bottom:3px}
+.drop-s{font-size:10px;color:var(--muted);line-height:1.6}
+.drop input{display:none}
 
-/* ── BADGES ── */
-.badge {
-  display: inline-block;
-  border-radius: var(--r4);
-  padding: 1px 6px;
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 15px;
+/* === FILE LIST === */
+.fi{
+  display:flex;align-items:center;gap:9px;
+  padding:8px 12px;border-bottom:1px solid var(--line);
+  cursor:pointer;transition:background .1s;
+  border-left:3px solid transparent;
 }
-.badge-blue   { background: var(--blue-light); color: var(--blue); }
-.badge-green  { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
-.badge-amber  { background: var(--amber-bg); color: #92400e; border: 1px solid var(--amber-border); }
-.badge-red    { background: var(--red-bg); color: var(--red); }
-.badge-gray   { background: #f1f5f9; color: var(--text-muted); }
-.badge-yellow { background: var(--yellow-bg); color: #854d0e; border: 1px solid #fef08a; }
-.badge-xml    { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); font-weight: 800; }
+.fi:hover{background:var(--surface)}
+.fi.active{border-left-color:var(--accent);background:var(--acc-bg)}
+.fi-name{font-size:10px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.fi-meta{font-size:9px;color:var(--muted)}
 
-/* ── ALERTS ── */
-.alert {
-  border-radius: var(--r8);
-  padding: 10px 13px;
-  font-size: 11px;
-  margin-bottom: 10px;
-  line-height: 1.6;
-  border-left: 4px solid;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-.alert-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
-.alert-info   { background: var(--blue-pale); border-color: var(--blue); color: var(--blue-dark); }
-.alert-success { background: var(--green-bg); border-color: var(--green); color: #166534; }
-.alert-warn   { background: var(--amber-bg); border-color: var(--amber); color: #92400e; }
-.alert-error  { background: var(--red-bg); border-color: var(--red); color: #991b1b; }
+/* === BADGES === */
+.bdg{display:inline-block;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;line-height:15px}
+.bdg-green{background:var(--acc-bg);color:var(--accent);border:1px solid var(--acc-mid)}
+.bdg-warn{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-line)}
+.bdg-red{background:var(--danger-bg);color:var(--danger)}
+.bdg-gray{background:var(--surface);color:var(--muted);border:1px solid var(--line)}
+.bdg-ink{background:var(--ink);color:#fff}
+.bdg-blue{background:var(--info-bg);color:var(--info)}
 
-/* ── TABLES ── */
-.tbl-wrap { overflow-x: auto; border-radius: var(--r10); border: 1.5px solid var(--border-soft); }
-table { border-collapse: collapse; width: 100%; font-size: 10.5px; }
-thead tr { background: linear-gradient(135deg, var(--blue), var(--blue-dark)); }
-th { padding: 7px 9px; text-align: left; color: #fff; font-weight: 600; font-size: 9.5px; white-space: nowrap; letter-spacing: .3px; }
-td { padding: 5px 9px; border-bottom: 1px solid var(--border-soft); color: var(--text); white-space: nowrap; }
-tr:hover td { background: var(--blue-pale); }
-tr:last-child td { border-bottom: none; }
-.td-num { text-align: right; font-family: var(--mono); font-size: 10px; }
-.td-green { color: var(--green); font-weight: 700; }
-.td-red   { color: var(--red); }
-.td-amber { color: var(--amber); font-weight: 700; }
+/* === ALERTS === */
+.alert{
+  border-radius:var(--r);padding:9px 12px;
+  font-size:10px;margin-bottom:8px;line-height:1.6;
+  border-left:3px solid;cursor:default;
+}
+.alert.clickable{cursor:pointer}
+.alert.clickable:hover{filter:brightness(.97)}
+.a-info{background:var(--info-bg);border-color:var(--info);color:var(--info)}
+.a-ok{background:var(--acc-bg);border-color:var(--accent);color:var(--accent)}
+.a-warn{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
+.a-err{background:var(--danger-bg);border-color:var(--danger);color:var(--danger)}
 
-/* ── CASILLEROS 104A ── */
-.cas-row {
-  display: flex;
-  align-items: center;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--border-soft);
-  gap: 10px;
-  transition: background .1s;
+/* === TABLES === */
+.tw{overflow-x:auto;border-radius:var(--r);border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;font-size:10px}
+th{
+  background:var(--ink);color:#fff;
+  padding:6px 8px;text-align:left;
+  font-size:9px;font-weight:600;white-space:nowrap;letter-spacing:.4px;
 }
-.cas-row:hover { background: var(--blue-pale); }
-.cas-row:last-child { border-bottom: none; }
-.cas-row.editable { background: #fffef0; }
-.cas-row.editable:hover { background: #fffde0; }
-.cas-row.calculated { background: var(--blue-pale); }
-.cas-row.result-pay { background: var(--red-bg); }
-.cas-row.result-favor { background: var(--green-bg); }
-.cas-num {
-  border-radius: var(--r6);
-  padding: 3px 8px;
-  font-size: 11px;
-  font-weight: 800;
-  min-width: 42px;
-  text-align: center;
-  flex-shrink: 0;
-  font-family: var(--mono);
-}
-.cas-num-blue   { background: var(--blue-light); color: var(--blue); }
-.cas-num-green  { background: var(--green-bg); color: var(--green); }
-.cas-num-red    { background: var(--red-bg); color: var(--red); }
-.cas-num-amber  { background: var(--amber-bg); color: var(--amber); }
-.cas-num-gray   { background: #f1f5f9; color: var(--text-muted); }
-.cas-num-dark   { background: #e2e8f0; color: #334155; }
-.cas-desc { flex: 1; font-size: 11px; color: var(--text); line-height: 1.4; }
-.cas-desc small { font-size: 9px; color: var(--text-muted); display: block; margin-top: 1px; }
-.cas-val {
-  font-family: var(--mono);
-  font-weight: 700;
-  font-size: 12px;
-  min-width: 80px;
-  text-align: right;
-  flex-shrink: 0;
-}
-.cas-input {
-  width: 90px;
-  border: 1.5px solid var(--border);
-  border-radius: var(--r6);
-  padding: 4px 8px;
-  font-size: 11px;
-  font-family: var(--mono);
-  text-align: right;
-  font-weight: 700;
-  color: var(--blue);
-  background: #fff;
-  outline: none;
-  flex-shrink: 0;
-}
-.cas-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,141,214,.15); }
+td{padding:5px 8px;border-bottom:1px solid var(--line);color:var(--ink);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface)}
+tr.row-ok td{background:#f0fdf4}
+tr.row-ok:hover td{background:#dcfce7}
+tr.row-warn td{background:var(--warn-bg)}
+tr.row-warn:hover td{background:#fef3c7}
+.tnum{text-align:right;font-family:var(--mono)}
+.tgreen{color:var(--accent);font-weight:700}
+.tred{color:var(--danger)}
+.twarn{color:var(--warn);font-weight:700}
 
-/* ── FIX PANEL ── */
-.fix-item {
-  border-radius: var(--r10);
-  padding: 12px;
-  margin-bottom: 8px;
-  border: 1.5px solid;
+/* === CASILLEROS 104A — estilo formulario SRI === */
+.cas-row{
+  display:flex;align-items:center;
+  padding:7px 12px;
+  border-bottom:1px solid var(--line);
+  gap:10px;transition:background .1s;
 }
-.fix-item.pending { background: var(--amber-bg); border-color: var(--amber-border); }
-.fix-item.solved  { background: var(--green-bg); border-color: var(--green-border); }
-.fix-title   { font-size: 11px; font-weight: 700; margin-bottom: 4px; }
-.fix-pending .fix-title { color: #92400e; }
-.fix-solved  .fix-title { color: var(--green); }
-.fix-sub     { font-size: 10px; color: var(--text-muted); margin-bottom: 8px; }
-.fix-vals { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
-.fix-val { background: #fff; border: 1px solid var(--border); border-radius: var(--r6); padding: 5px 7px; text-align: center; }
-.fix-val-label { font-size: 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; }
-.fix-val-num { font-size: 12px; font-weight: 700; font-family: var(--mono); margin-top: 1px; }
+.cas-row:hover{background:var(--surface)}
+.cas-row:last-child{border-bottom:none}
+.cas-row.editable{background:#fffef5}
+.cas-row.editable:hover{background:#fffce0}
+.cas-row.calc{background:var(--surface)}
+.cas-row.result-pay{background:var(--danger-bg)}
+.cas-row.result-fav{background:var(--acc-bg)}
+/* El "sello" — número de casillero como en el formulario real */
+.cas-n{
+  font-family:var(--mono);font-size:11px;font-weight:700;
+  min-width:38px;text-align:center;
+  background:var(--stamp);color:#fff;
+  border-radius:3px;padding:3px 6px;flex-shrink:0;
+}
+.cas-n.green{background:var(--accent)}
+.cas-n.red{background:var(--danger)}
+.cas-n.warn{background:var(--warn)}
+.cas-n.gray{background:var(--muted)}
+.cas-n.white{background:var(--card);color:var(--ink);border:1.5px solid var(--line2)}
+.cas-desc{flex:1;font-size:10px;color:var(--ink2);line-height:1.4}
+.cas-desc small{font-size:9px;color:var(--faint);display:block;margin-top:1px}
+.cas-val{font-family:var(--mono);font-weight:700;font-size:12px;min-width:78px;text-align:right;flex-shrink:0;color:var(--ink)}
+.cas-input{
+  width:88px;
+  border:1.5px solid var(--line2);border-radius:var(--r);
+  padding:3px 7px;font-size:11px;font-family:var(--mono);
+  text-align:right;font-weight:700;color:var(--accent);
+  background:#fff;outline:none;flex-shrink:0;
+}
+.cas-input:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--acc-bg)}
 
-/* ── EMPTY STATE ── */
-.empty {
-  text-align: center;
-  padding: 32px 20px;
-  color: var(--text-muted);
-}
-.empty-icon { font-size: 40px; margin-bottom: 12px; opacity: .6; }
-.empty-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
-.empty-sub   { font-size: 11px; line-height: 1.7; }
+/* === FIX PANEL === */
+.fix-item{border-radius:var(--r);padding:11px 12px;margin-bottom:7px;border:1px solid}
+.fix-item.pend{background:var(--warn-bg);border-color:var(--warn-line)}
+.fix-item.done{background:var(--acc-bg);border-color:var(--acc-mid)}
+.fix-t{font-size:10px;font-weight:700;margin-bottom:3px}
+.fix-t.pend{color:var(--warn)}
+.fix-t.done{color:var(--accent)}
+.fix-s{font-size:9px;color:var(--muted);margin-bottom:7px}
+.fix-vals{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px}
+.fix-v{background:#fff;border:1px solid var(--line);border-radius:4px;padding:4px 6px;text-align:center}
+.fix-vl{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.fix-vn{font-size:11px;font-weight:700;font-family:var(--mono);margin-top:1px}
 
-/* ── SEARCH INPUT ── */
-.search-wrap { position: relative; flex: 1; min-width: 100px; }
-.search-wrap .search-icon {
-  position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
-  font-size: 12px; color: var(--text-muted); pointer-events: none;
-}
-.search-input {
-  width: 100%;
-  padding: 5px 9px 5px 28px;
-  border: 1.5px solid var(--border);
-  border-radius: var(--r6);
-  font-size: 11px;
-  font-family: var(--font);
-  background: var(--card);
-  outline: none;
-  color: var(--text);
-}
-.search-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,141,214,.12); }
+/* === EMPTY STATE === */
+.empty{text-align:center;padding:30px 20px;color:var(--muted)}
+.empty-ico{font-size:36px;margin-bottom:10px;opacity:.5}
+.empty-t{font-size:12px;font-weight:700;color:var(--ink);margin-bottom:5px}
+.empty-s{font-size:10px;line-height:1.7}
+/* legacy compat */
+.empty-state{text-align:center;padding:28px 20px;color:var(--muted)}
+.empty-state .icon{font-size:36px;margin-bottom:10px}
+.empty-state .title{font-size:12px;font-weight:700;color:var(--ink);margin-bottom:5px}
 
-/* ── FILTER CHIPS ── */
-.filter-chip {
-  border: 1.5px solid var(--border);
-  border-radius: 99px;
-  padding: 3px 10px;
-  font-size: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  background: var(--card);
-  color: var(--text-muted);
-  transition: all .12s;
-  white-space: nowrap;
+/* === SEARCH === */
+.search-wrap{position:relative;flex:1;min-width:80px}
+.search-ico{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--faint);pointer-events:none}
+.search-inp{
+  width:100%;padding:5px 8px 5px 25px;
+  border:1px solid var(--line2);border-radius:var(--r);
+  font-size:10px;font-family:var(--sans);
+  background:var(--card);color:var(--ink);outline:none;
 }
-.filter-chip:hover { border-color: var(--blue); color: var(--blue); }
-.filter-chip.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.search-inp:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--acc-bg)}
 
-/* ── TOAST ── */
-#toast {
-  position: fixed;
-  bottom: 20px; right: 16px; left: 16px;
-  background: var(--blue-deep);
-  color: #fff;
-  border-radius: var(--r10);
-  padding: 10px 14px;
-  font-size: 11px;
-  font-weight: 600;
-  box-shadow: 0 4px 20px rgba(15,72,128,.4);
-  transform: translateY(80px);
-  opacity: 0;
-  transition: all .3s;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+/* === FILTER CHIPS === */
+.chip{
+  border:1px solid var(--line2);border-radius:99px;
+  padding:3px 9px;font-size:9px;font-weight:600;
+  cursor:pointer;background:var(--card);color:var(--muted);transition:all .1s;
+  white-space:nowrap;
 }
-#toast.visible { transform: translateY(0); opacity: 1; }
-#toast.toast-success { background: var(--green); }
-#toast.toast-error   { background: var(--red); }
-#toast.toast-warn    { background: var(--amber); }
+.chip:hover{border-color:var(--ink);color:var(--ink)}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 
-/* ── RESULT CARD ── */
-.result-card {
-  border-radius: var(--r12);
-  padding: 14px 16px;
-  margin-top: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+/* === RESULT CARD === */
+.result-big{
+  border-radius:var(--r);padding:12px 14px;margin:10px 0;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
 }
-.result-card.pay   { background: var(--red-bg); border: 2px solid var(--red-border); }
-.result-card.favor { background: var(--green-bg); border: 2px solid var(--green-border); }
-.result-amount { font-size: 22px; font-weight: 900; font-family: var(--mono); }
-.result-pay   .result-amount { color: var(--red); }
-.result-favor .result-amount { color: var(--green); }
-.result-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; opacity: .75; margin-bottom: 2px; }
-.result-formula { font-size: 9px; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+.result-big.pay{background:var(--danger-bg);border:1.5px solid var(--danger-line)}
+.result-big.fav{background:var(--acc-bg);border:1.5px solid var(--acc-mid)}
+.result-amount{font-size:22px;font-weight:700;font-family:var(--mono)}
+.result-big.pay .result-amount{color:var(--danger)}
+.result-big.fav .result-amount{color:var(--accent)}
+.result-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;opacity:.7;margin-bottom:1px}
+.result-fml{font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5}
 
-/* ── XMLPOOL BANNER ── */
-.xml-banner {
-  background: var(--amber-bg);
-  border: 1.5px solid var(--amber-border);
-  border-radius: var(--r8);
-  padding: 9px 12px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #92400e;
-  margin-bottom: 10px;
-  display: none;
-  align-items: center;
-  gap: 8px;
+/* === XML BANNER === */
+.xml-banner{
+  background:var(--warn-bg);border:1px solid var(--warn-line);
+  border-radius:var(--r);padding:8px 11px;
+  font-size:10px;font-weight:600;color:var(--warn);
+  margin-bottom:8px;display:none;align-items:center;gap:7px;
 }
 
-/* ── GUIDE STEPS ── */
-.steps { counter-reset: step; }
-.step {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
-  align-items: flex-start;
+/* === TOAST === */
+#toast{
+  position:fixed;bottom:16px;left:12px;right:12px;
+  background:var(--ink);color:#fff;
+  border-radius:var(--r);padding:9px 13px;
+  font-size:10px;font-weight:600;
+  transform:translateY(60px);opacity:0;
+  transition:all .25s;z-index:9999;
+  display:flex;align-items:center;gap:7px;
 }
-.step-n {
-  counter-increment: step;
-  width: 22px; height: 22px;
-  background: var(--blue);
-  color: #fff;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 800;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-.step-body { font-size: 11px; color: var(--text); line-height: 1.6; flex: 1; }
-.step-body strong { color: var(--blue); }
+#toast.visible{transform:translateY(0);opacity:1}
+#toast.toast-success{background:var(--accent)}
+#toast.toast-error{background:var(--danger)}
+#toast.toast-warn{background:var(--warn)}
 
-/* ── CHECKBOX ── */
-label.check {
-  display: flex; align-items: center; gap: 8px;
-  cursor: pointer; font-size: 11px; color: var(--text);
-  padding: 4px 0;
-}
-input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--blue); }
-
-/* ── MONTH GRID ── */
-.month-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.month-card {
-  background: var(--card);
-  border: 1.5px solid var(--border-soft);
-  border-radius: var(--r10);
-  padding: 10px 12px;
-  cursor: pointer;
-  transition: all .15s;
-}
-.month-card:hover { border-color: var(--blue); background: var(--blue-pale); }
-.month-card.active { border-color: var(--blue); background: var(--blue-pale); border-width: 2px; }
-.month-name { font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
-.month-vals { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
-.month-val  { font-size: 9px; }
-.month-val .lbl { color: var(--text-muted); }
-.month-val .num { font-family: var(--mono); font-weight: 600; color: var(--text); }
-
-/* ── IVA 8% ROW ── */
-tr.iva8-row td { background: #fffbeb !important; }
-tr.iva8-row:hover td { background: #fef3c7 !important; }
-
-/* ── TOTALS ROW ── */
-tr.total-row td {
-  background: var(--blue-light) !important;
-  font-weight: 800;
-  color: var(--blue);
-  border-top: 2px solid var(--blue);
-}
-
+/* === LEGACY COMPAT (clases que usa el JS generado) === */
+.resumen-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+.resumen-box{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:9px 11px}
+.resumen-label{font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.resumen-value{font-size:18px;font-weight:700;font-family:var(--mono);line-height:1.1}
+.card-title{font-size:10px;font-weight:700;color:var(--ink);margin-bottom:7px}
+.section-hdr{background:var(--ink);color:#fff;padding:7px 14px;border-radius:var(--r) var(--r) 0 0;font-size:10px;font-weight:700;letter-spacing:.2px}
+.section-hdr-green{background:var(--accent)}
+.casillero-row{display:flex;align-items:center;padding:7px 12px;border-bottom:1px solid var(--line);gap:10px}
+.casillero-row:hover{background:var(--surface)}
+.casillero-row:last-child{border-bottom:none}
+.casillero-row.editable{background:#fffef5}
+.cas-num{font-family:var(--mono);font-size:11px;font-weight:700;min-width:38px;text-align:center;background:var(--stamp);color:#fff;border-radius:3px;padding:3px 6px;flex-shrink:0}
+.cas-num-blue{background:var(--ink)}
+.cas-num-green{background:var(--accent)}
+.cas-num-red{background:var(--danger)}
+.cas-num-amber{background:var(--warn)}
+.cas-num-gray{background:var(--muted)}
+.cas-desc{flex:1;font-size:10px;color:var(--ink2);line-height:1.4}
+.cas-val{font-family:var(--mono);font-weight:700;font-size:12px;min-width:78px;text-align:right;flex-shrink:0;color:var(--ink)}
+.badge,.bdg{display:inline-block;border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;line-height:15px}
+.badge-blue,.bdg-blue{background:var(--info-bg);color:var(--info);border:1px solid var(--info-line)}
+.badge-green,.bdg-green{background:var(--acc-bg);color:var(--accent);border:1px solid var(--acc-mid)}
+.badge-amber,.bdg-amber,.badge-yellow,.badge-warn,.bdg-warn{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn-line)}
+.badge-red,.bdg-red{background:var(--danger-bg);color:var(--danger)}
+.badge-gray,.bdg-gray{background:var(--surface);color:var(--muted);border:1px solid var(--line)}
+.badge-xml{background:var(--acc-bg);color:var(--accent);border:1px solid var(--acc-mid);font-weight:800}
+.file-item{display:flex;align-items:center;gap:9px;padding:8px 12px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .1s;border-left:3px solid transparent}
+.file-item:hover{background:var(--surface)}
+.file-item.active{border-left-color:var(--accent);background:var(--acc-bg)}
+.file-item-name{font-size:10px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.file-item-meta{font-size:9px;color:var(--muted)}
+.file-item-badges{display:flex;gap:3px;margin-top:3px;flex-wrap:wrap}
+.fix-item{border-radius:var(--r);padding:11px 12px;margin-bottom:7px;border:1px solid}
+.fix-item.pending,.fix-item.pend{background:var(--warn-bg);border-color:var(--warn-line)}
+.fix-item.resuelto,.fix-item.done{background:var(--acc-bg);border-color:var(--acc-mid)}
+.fix-title{font-size:10px;font-weight:700;margin-bottom:3px}
+.fix-title.resuelto{color:var(--accent)}
+.fix-sub{font-size:9px;color:var(--muted);margin-bottom:7px}
+.fix-valores,.fix-vals{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px}
+.fix-val{background:#fff;border:1px solid var(--line);border-radius:4px;padding:4px 6px;text-align:center}
+.fix-val-label,.fix-vl{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.fix-val-num,.fix-vn{font-size:11px;font-weight:700;font-family:var(--mono);margin-top:1px}
+.tbl-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--line)}
+.td-num{text-align:right;font-family:var(--mono)}
+.td-green{color:var(--accent);font-weight:700}
+.td-red{color:var(--danger)}
+.td-orange{color:var(--warn)}
+label.check{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:10px;color:var(--ink);padding:3px 0}
+input[type=checkbox]{width:13px;height:13px;accent-color:var(--accent)}
+.btn-heka{background:var(--accent);color:#fff;border-radius:var(--r);padding:7px 14px;font-size:10px;font-weight:700;border:none;cursor:pointer;transition:all .12s}
+.btn-heka:hover{background:var(--accent2)}
+.btn-heka.btn-sm{padding:5px 10px;font-size:10px}
+.btn-heka.btn-full{width:100%;display:block;text-align:center}
+.btn-success{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-success:hover{background:var(--accent2);color:#fff}
+.btn-primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn-primary:hover{background:var(--ink2);color:#fff}
+.btn-danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn-outline,.btn-ghost{background:var(--card);border:1px solid var(--line2);color:var(--muted)}
+.btn-outline:hover,.btn-ghost:hover{border-color:var(--ink);color:var(--ink)}
+.alert-info,.alert.alert-info{background:var(--info-bg);border-color:var(--info);color:var(--info)}
+.alert-success,.alert.alert-success{background:var(--acc-bg);border-color:var(--accent);color:var(--accent)}
+.alert-warn,.alert.alert-warn{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
+.alert-error,.alert.alert-error{background:var(--danger-bg);border-color:var(--danger);color:var(--danger)}
+.alert{border-radius:var(--r);padding:9px 12px;font-size:10px;margin-bottom:8px;line-height:1.6;border-left:3px solid}
 </style>
 </head>
 <body>
 
-<!-- ══ HEADER ══ -->
+<!-- HEADER -->
 <div class="hdr">
-  <div class="hdr-logo">
-    <img src="data:image/png;base64,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" alt="HEKA">
-  </div>
-  <div class="hdr-text">
-    <div class="hdr-name">Gestor SRI · HEKA</div>
-    <div class="hdr-sub">Comprobantes · IVA · Formulario 104A</div>
-  </div>
+  <div class="hdr-logo"><img src="data:image/png;base64,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" alt=""></div>
+  <span class="hdr-wordmark">Gestor SRI</span>
+  <span class="hdr-sep">/</span>
+  <span class="hdr-sub">Ecuador · Comprobantes electrónicos</span>
+  <div class="hdr-spacer"></div>
+  <span class="hdr-badge">104A</span>
 </div>
 
-<!-- ══ TABS ══ -->
+<!-- TABS -->
 <div class="tabs">
-  <button class="tab active" id="tab-cargar"   onclick="goTab('cargar')">
-    <span class="tab-icon">📂</span>
-    <span class="tab-label">Cargar</span>
+  <button class="tab active" id="tab-cargar" onclick="goTab('cargar')">
+    <span class="tab-icon">📂</span><span>Cargar</span>
   </button>
-  <button class="tab" id="tab-vista"    onclick="goTab('vista')">
-    <span class="tab-icon">📥</span>
-    <span class="tab-label">Recibidos</span>
+  <button class="tab" id="tab-vista" onclick="goTab('vista')">
+    <span class="tab-icon">📥</span><span>Recibidos</span>
   </button>
   <button class="tab" id="tab-emitidos" onclick="goTab('emitidos')">
-    <span class="tab-icon">📤</span>
-    <span class="tab-label">Emitidos</span>
+    <span class="tab-icon">📤</span><span>Emitidos</span>
   </button>
-  <button class="tab" id="tab-fix"      onclick="goTab('fix')">
-    <span class="tab-icon">🔧</span>
-    <span class="tab-label">Corregir</span>
+  <button class="tab" id="tab-fix" onclick="goTab('fix')">
+    <span class="tab-icon">🔧</span><span>Corregir</span>
   </button>
-  <button class="tab" id="tab-f104"     onclick="goTab('f104')">
-    <span class="tab-icon">🧾</span>
-    <span class="tab-label">104A</span>
+  <button class="tab" id="tab-f104" onclick="goTab('f104')">
+    <span class="tab-icon">🧾</span><span>104A</span>
   </button>
-  <button class="tab" id="tab-meses"    onclick="goTab('meses')">
-    <span class="tab-icon">📅</span>
-    <span class="tab-label">Meses</span>
+  <button class="tab" id="tab-meses" onclick="goTab('meses')">
+    <span class="tab-icon">📅</span><span>Meses</span>
   </button>
-  <button class="tab" id="tab-excel"    onclick="goTab('excel')">
-    <span class="tab-icon">📊</span>
-    <span class="tab-label">Excel</span>
+  <button class="tab" id="tab-excel" onclick="goTab('excel')">
+    <span class="tab-icon">📊</span><span>Excel</span>
   </button>
 </div>
 
-<!-- ══ PROGRESS STRIP ══ -->
 <div class="progress-strip" id="progress">⏳ Procesando...</div>
 
-<!-- ══════════════════════════════════════════════
-     PANEL: CARGAR
-══════════════════════════════════════════════ -->
+<!-- CARGAR -->
 <div class="panel visible" id="panel-cargar">
-  <div class="panel-scroll">
-
-    <!-- Zona de carga principal -->
+  <div class="pscroll">
     <div class="drop" id="dz"
       onclick="document.getElementById('fi').click()"
       ondragover="event.preventDefault();this.classList.add('drag')"
       ondragleave="this.classList.remove('drag')"
       ondrop="onDrop(event)">
       <input type="file" id="fi" accept=".txt,.csv,.xml" multiple onchange="onFiles(this.files)">
-      <div class="drop-icon">📄</div>
-      <div class="drop-title">Carga tu TXT del portal SRI</div>
-      <div class="drop-hint">
-        Arrastra el archivo aquí o haz clic para buscarlo<br>
-        También puedes cargar XMLs individuales o una carpeta completa
-      </div>
+      <div class="drop-ico">📄</div>
+      <div class="drop-t">Carga el TXT del portal SRI</div>
+      <div class="drop-s">Arrastra el archivo aquí o haz clic para buscarlo<br>También puedes cargar XMLs o una carpeta completa</div>
     </div>
-
-    <!-- Botones secundarios -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-      <button class="btn btn-ghost" onclick="document.getElementById('fi').click()">
-        📄 TXT del SRI
-      </button>
-      <button class="btn btn-ghost" style="border-color:var(--amber);color:var(--amber)"
-        onclick="document.getElementById('fiCarpeta').click()">
-        📁 Carpeta de XMLs
-      </button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+      <button class="btn btn-full" onclick="document.getElementById('fi').click()">📄 TXT del SRI</button>
+      <button class="btn btn-full" style="border-color:var(--warn-line);color:var(--warn)"
+        onclick="document.getElementById('fiCarpeta').click()">📁 Carpeta XMLs</button>
       <input type="file" id="fiCarpeta" webkitdirectory multiple accept=".xml" style="display:none" onchange="onFiles(this.files)">
     </div>
-
-    <!-- Banner XMLs en espera -->
     <div class="xml-banner" id="xmlPoolCount">
-      <span>📦</span><span id="xmlPoolText">0 XMLs en espera</span>
+      <span>📦</span><span id="xmlPoolText">XMLs cargados</span>
     </div>
-
-    <!-- Lista de archivos -->
     <div id="fileList">
-      <div class="card" style="padding:0;overflow:hidden">
+      <div class="card">
         <div class="empty">
-          <div class="empty-icon">🇪🇨</div>
-          <div class="empty-title">Sin archivos cargados</div>
-          <div class="empty-sub">
-            <strong>¿Cómo empezar?</strong><br><br>
-            <strong>Comprobantes recibidos (lo que compraste):</strong><br>
-            1. Entra al portal SRI → Comprobantes electrónicos → Recibidos<br>
-            2. Descarga el <strong>TXT del período</strong><br>
-            3. Cárgalo aquí arriba<br><br>
-            <strong>Comprobantes emitidos (lo que vendiste):</strong><br>
-            4. Portal SRI → Comprobantes → Emitidos → descarga TXT<br>
-            5. Cárgalo también aquí
+          <div class="empty-ico">🇪🇨</div>
+          <div class="empty-t">Sin archivos cargados</div>
+          <div class="empty-s"><strong>Comprobantes recibidos:</strong><br>
+            1 · Entra al SRI → Comprobantes electrónicos → Recibidos<br>
+            2 · Descarga el TXT del período<br>
+            3 · Cárgalo aquí<br><br>
+            <strong>Comprobantes emitidos:</strong><br>
+            4 · Portal SRI → Emitidos → descarga TXT<br>
+            5 · Cárgalo también
           </div>
         </div>
       </div>
     </div>
-
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════
-     PANEL: VISTA (RECIBIDOS)
-══════════════════════════════════════════════ -->
+<!-- VISTA -->
 <div class="panel" id="panel-vista">
-  <div class="toolbar">
+  <div class="tb">
     <button class="btn btn-ghost btn-sm" onclick="goTab('cargar')">← Volver</button>
     <div class="search-wrap">
-      <span class="search-icon">🔍</span>
-      <input class="search-input" id="buscador" placeholder="Buscar emisor, serie, RUC..." oninput="onBuscar(this.value)">
+      <span class="search-ico">🔍</span>
+      <input class="search-inp" id="buscador" placeholder="Buscar emisor, serie, RUC..." oninput="onBuscar(this.value)">
     </div>
-    <div style="display:flex;gap:5px;flex-wrap:wrap">
-      <button class="filter-chip" id="filtroIVA"  onclick="toggleFiltro('soloConIVA')">Con IVA</button>
-      <button class="filter-chip" id="filtroBase0" onclick="toggleFiltro('soloBase0')">Solo 0%</button>
-      <button class="filter-chip" id="filtroXML"  onclick="toggleFiltro('soloCorregidos')">✓ XML</button>
-    </div>
-    <button class="btn btn-warn btn-sm" id="btnFixTab" onclick="goTab('fix')" style="display:none">🔧 Corregir</button>
-    <button class="btn btn-ghost btn-sm" onclick="imprimirPDF()">🖨️</button>
-    <button class="btn btn-success btn-sm" onclick="exportarActivo()">📊</button>
+    <button class="chip" id="filtroIVA" onclick="toggleFiltro('soloConIVA')">Con IVA</button>
+    <button class="chip" id="filtroBase0" onclick="toggleFiltro('soloBase0')">Solo 0%</button>
+    <button class="chip" id="filtroXML" onclick="toggleFiltro('soloCorregidos')">✓ XML</button>
+    <button class="btn btn-warn btn-sm" id="btnFixTab" onclick="goTab('fix')" style="display:none">🔧</button>
+    <button class="btn btn-ghost btn-sm" onclick="imprimirPDF()">🖨</button>
+    <button class="btn btn-green btn-sm" onclick="exportarActivo()">📊</button>
   </div>
-  <div class="panel-scroll" id="vistaContent">
-    <div class="empty">
-      <div class="empty-icon">📋</div>
-      <div class="empty-title">Selecciona un archivo</div>
-    </div>
+  <div class="pscroll" id="vistaContent">
+    <div class="empty"><div class="empty-ico">📋</div><div class="empty-t">Selecciona un archivo</div></div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════
-     PANEL: EMITIDOS
-══════════════════════════════════════════════ -->
+<!-- EMITIDOS -->
 <div class="panel" id="panel-emitidos">
-  <div class="toolbar">
+  <div class="tb">
     <button class="btn btn-ghost btn-sm" onclick="goTab('cargar')">← Volver</button>
-    <span class="toolbar-title">📤 Facturas Emitidas</span>
+    <span class="tb-title">📤 Facturas Emitidas</span>
     <div id="emitidosBadges" style="display:flex;gap:4px;align-items:center"></div>
-    <div style="flex:1"></div>
-    <button class="btn btn-ghost btn-sm" onclick="imprimirPDF('emitidos')">🖨️</button>
-    <button class="btn btn-success btn-sm" onclick="exportarEmitidos()">📊 Excel</button>
+    <div class="tb-sep"></div>
+    <button class="btn btn-ghost btn-sm" onclick="imprimirPDF('emitidos')">🖨</button>
+    <button class="btn btn-green btn-sm" onclick="exportarEmitidos()">📊 Excel</button>
   </div>
-  <div class="panel-scroll" id="emitidosContent">
+  <div class="pscroll" id="emitidosContent">
     <div class="empty">
-      <div class="empty-icon">📤</div>
-      <div class="empty-title">Sin facturas emitidas</div>
-      <div class="empty-sub">
-        Carga el TXT de <strong>Comprobantes Emitidos</strong> desde el portal SRI.
-      </div>
-      <button class="btn btn-primary" style="margin-top:12px" onclick="goTab('cargar')">📂 Ir a Cargar</button>
+      <div class="empty-ico">📤</div>
+      <div class="empty-t">Sin facturas emitidas</div>
+      <div class="empty-s">Carga el TXT de <strong>Comprobantes Emitidos</strong> desde el portal SRI.</div>
+      <button class="btn btn-solid" style="margin-top:10px" onclick="goTab('cargar')">📂 Ir a Cargar</button>
     </div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════
-     PANEL: CORREGIR CON XML
-══════════════════════════════════════════════ -->
+<!-- FIX -->
 <div class="panel" id="panel-fix">
-  <div class="toolbar">
+  <div class="tb">
     <button class="btn btn-ghost btn-sm" onclick="goTab('vista')">← Volver</button>
-    <span class="toolbar-title" style="color:var(--amber)">🔧 Corrección con XML</span>
-    <div style="flex:1"></div>
-    <span id="fixContador" style="font-size:10px;color:var(--text-muted)"></span>
+    <span class="tb-title" style="color:var(--warn)">🔧 Corrección con XML</span>
+    <div class="tb-sep"></div>
+    <span id="fixContador" style="font-size:9px;color:var(--muted)"></span>
   </div>
-  <div class="panel-scroll" id="fixContent">
-    <div class="empty">
-      <div class="empty-icon">✅</div>
-      <div class="empty-title">No hay facturas para corregir</div>
-    </div>
+  <div class="pscroll" id="fixContent">
+    <div class="empty"><div class="empty-ico">✅</div><div class="empty-t">No hay facturas para corregir</div></div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════
-     PANEL: FORMULARIO 104A
-══════════════════════════════════════════════ -->
+<!-- 104A -->
 <div class="panel" id="panel-f104">
-  <div class="toolbar">
+  <div class="tb">
     <button class="btn btn-ghost btn-sm" onclick="goTab('cargar')">← Volver</button>
-    <span class="toolbar-title">🧾 Formulario 104A</span>
-    <div style="flex:1"></div>
-    <button class="btn btn-ghost btn-sm" onclick="imprimirPDF('104a')">🖨️ PDF</button>
-    <button class="btn btn-success btn-sm" onclick="exportar104AExcel()">📊 Excel</button>
+    <span class="tb-title">🧾 Formulario 104A</span>
+    <div class="tb-sep"></div>
+    <button class="btn btn-ghost btn-sm" onclick="imprimirPDF('104a')">🖨 PDF</button>
+    <button class="btn btn-green btn-sm" onclick="exportar104AExcel()">📊 Excel</button>
   </div>
-  <div class="panel-scroll" id="f104Content">
+  <div class="pscroll" id="f104Content">
     <div class="empty">
-      <div class="empty-icon">🧾</div>
-      <div class="empty-title">Carga un TXT primero</div>
-      <div class="empty-sub">El formulario se llena solo con tus datos del SRI.</div>
+      <div class="empty-ico">🧾</div>
+      <div class="empty-t">Carga un TXT primero</div>
+      <div class="empty-s">El formulario se llena solo con tus datos del SRI.</div>
     </div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════
-     PANEL: MESES
-══════════════════════════════════════════════ -->
+<!-- MESES -->
 <div class="panel" id="panel-meses">
-  <div class="toolbar">
+  <div class="tb">
     <button class="btn btn-ghost btn-sm" onclick="goTab('cargar')">← Volver</button>
-    <span class="toolbar-title">📅 Histórico mensual</span>
-    <div style="flex:1"></div>
-    <button class="btn btn-ghost btn-sm" onclick="toggleComparador()" id="btnComparador">⚖️ Comparar</button>
-    <button class="btn btn-primary btn-sm" onclick="exportarResumenMeses()">📊</button>
-    <button class="btn btn-ghost btn-sm" onclick="imprimirPDF('meses')">🖨️</button>
+    <span class="tb-title">📅 Histórico mensual</span>
+    <div class="tb-sep"></div>
+    <button class="btn btn-ghost btn-sm" onclick="toggleComparador()" id="btnComparador">⚖ Comparar</button>
+    <button class="btn btn-solid btn-sm" onclick="exportarResumenMeses()">📊</button>
+    <button class="btn btn-ghost btn-sm" onclick="imprimirPDF('meses')">🖨</button>
   </div>
-  <div id="comparadorPanel" style="display:none;padding:8px 12px;background:var(--blue-pale);border-bottom:1.5px solid var(--border)">
-    <div style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:6px">⚖️ Comparar dos períodos</div>
+  <div id="comparadorPanel" style="display:none;padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--line)">
+    <div style="font-size:10px;font-weight:700;color:var(--ink);margin-bottom:6px">⚖ Comparar dos períodos</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div>
-        <div style="font-size:9px;color:var(--text-muted);margin-bottom:3px">Período A</div>
-        <select id="selMesA" style="width:100%;border:1.5px solid var(--border);border-radius:var(--r6);padding:5px 8px;font-size:11px" onchange="renderComparador()"><option value="">— selecciona —</option></select>
+        <div style="font-size:9px;color:var(--muted);margin-bottom:3px">Período A</div>
+        <select id="selMesA" style="width:100%;border:1px solid var(--line2);border-radius:var(--r);padding:5px 7px;font-size:10px;background:var(--card)" onchange="renderComparador()"><option value="">— selecciona —</option></select>
       </div>
       <div>
-        <div style="font-size:9px;color:var(--text-muted);margin-bottom:3px">Período B</div>
-        <select id="selMesB" style="width:100%;border:1.5px solid var(--border);border-radius:var(--r6);padding:5px 8px;font-size:11px" onchange="renderComparador()"><option value="">— selecciona —</option></select>
+        <div style="font-size:9px;color:var(--muted);margin-bottom:3px">Período B</div>
+        <select id="selMesB" style="width:100%;border:1px solid var(--line2);border-radius:var(--r);padding:5px 7px;font-size:10px;background:var(--card)" onchange="renderComparador()"><option value="">— selecciona —</option></select>
       </div>
     </div>
     <div id="comparadorResult" style="margin-top:8px"></div>
   </div>
-  <div class="panel-scroll" id="mesesContent">
+  <div class="pscroll" id="mesesContent">
     <div class="empty">
-      <div class="empty-icon">📅</div>
-      <div class="empty-title">Carga archivos de varios meses</div>
-      <div class="empty-sub">Cada TXT que cargues aparece aquí para comparar mes a mes.</div>
+      <div class="empty-ico">📅</div>
+      <div class="empty-t">Carga archivos de varios meses</div>
+      <div class="empty-s">Cada TXT que cargues aparece aquí para comparar mes a mes.</div>
     </div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════
-     PANEL: EXCEL / EXPORTAR
-══════════════════════════════════════════════ -->
+<!-- EXCEL -->
 <div class="panel" id="panel-excel">
-  <div class="toolbar">
+  <div class="tb">
     <button class="btn btn-ghost btn-sm" onclick="goTab('cargar')">← Volver</button>
-    <span class="toolbar-title">📊 Exportar a Excel</span>
+    <span class="tb-title">📊 Exportar a Excel</span>
   </div>
-  <div class="panel-scroll">
-
+  <div class="pscroll">
     <div class="card">
-      <div class="card-header">⚙️ Opciones de exportación</div>
+      <div class="card-head">Opciones</div>
       <label class="check"><input type="checkbox" id="chkFormula" checked> BASE GRAVADA como fórmula =IVA/0.15</label>
       <label class="check"><input type="checkbox" id="chkFormato" checked> Formato moneda en columnas numéricas</label>
       <label class="check"><input type="checkbox" id="chkPropina" checked> Columna PROPINA (informativa)</label>
     </div>
-
     <div class="card">
-      <div class="card-header">📄 Archivo activo</div>
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px" id="excelFileLabel">Ningún archivo seleccionado</div>
-      <button class="btn btn-success btn-full" onclick="exportarActivo()">📊 Exportar archivo activo → Excel</button>
+      <div class="card-head">Archivo activo</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:7px" id="excelFileLabel">Ningún archivo seleccionado</div>
+      <button class="btn btn-green btn-full" onclick="exportarActivo()">📊 Exportar archivo activo</button>
     </div>
-
     <div class="card">
-      <div class="card-header">📚 Exportar todos los meses</div>
-      <button class="btn btn-primary btn-full" onclick="exportarTodos()">📊 Exportar todos los archivos</button>
+      <div class="card-head">Todos los meses</div>
+      <button class="btn btn-solid btn-full" onclick="exportarTodos()">📊 Exportar todos los archivos</button>
     </div>
-
     <div class="card">
-      <div class="card-header">🧾 Casilleros Formulario 104A</div>
-      <button class="btn btn-primary btn-full" onclick="exportar104AExcel()">📊 Exportar 104A → Excel</button>
+      <div class="card-head">Formulario 104A</div>
+      <button class="btn btn-solid btn-full" onclick="exportar104AExcel()">📊 Exportar casilleros 104A</button>
     </div>
-
     <div class="card">
-      <div class="card-header">🖨️ PDFs de facturas</div>
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">
-        Genera el PDF de cada factura desde la pestaña Recibidos — usa el botón 🖨️ en cada fila.
-      </div>
-      <button class="btn btn-ghost btn-full" onclick="goTab('vista');mostrarAyudaPDF()">
-        🖨️ Ir a Recibidos → PDF por factura
-      </button>
+      <div class="card-head">PDFs de facturas</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:7px">Usa el botón 🖨 en cada fila de la pestaña Recibidos.</div>
+      <button class="btn btn-full" onclick="goTab('vista');mostrarAyudaPDF()">🖨 Ir a Recibidos → PDF por factura</button>
     </div>
-
     <div id="excelMsg" style="display:none;margin-top:8px"></div>
   </div>
 </div>
 
-<!-- ══ TOAST ══ -->
 <div id="toast"></div>
 
-<!-- ══ JS ══ -->
 <script>
+
 
 // ══════════════════════════════════════════════════════════
 // ESTADO GLOBAL
@@ -1594,7 +1345,7 @@ function renderFixPanel(){
       const b0Est    = r.base0.toFixed(2);
       const ruc      = r.RUC_EMISOR || '—';
       const serie    = r.SERIE_COMPROBANTE || '—';
-      html+=`<div class="fix-item" id="fix-${serie}">
+      html+=`<div class="fix-item pending" id="fix-${serie}">
         <div class="fix-title">📄 ${r.RAZON_SOCIAL_EMISOR||'Sin nombre'}</div>
         <div style="font-size:10px;color:#6b7280;margin-bottom:4px">
           RUC emisor: <strong style="font-family:monospace;color:#374151">${ruc}</strong>
@@ -1739,7 +1490,7 @@ function renderTXTVista(p){
 
   html+=`<div class="card" style="padding:0">
     <div style="padding:8px 12px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center">
-      <span style="font-size:11px;font-weight:700">Detalle de comprobantes</span> <span id="filtroCount" style="font-size:10px;color:var(--heka-muted)"></span>
+      <span style="font-size:11px;font-weight:700">Detalle de comprobantes</span> <span id="filtroCount" style="font-size:10px;color:var(--text-muted)"></span>
       <span class="badge badge-green">Portal SRI</span>
     </div>
     <div class="tbl-wrap">
@@ -1770,7 +1521,7 @@ function renderTXTVista(p){
         <td style="font-size:10px">${r.FECHA_EMISION||''}</td>
         <td class="td-num td-green">${r.baseGravada>0?'$'+r.baseGravada.toFixed(2):''}</td>
         <td class="td-num">${r.base0>0?'$'+r.base0.toFixed(2):''}</td>
-        <td class="td-num" style="color:${r.esIVA8?'#d97706':'var(--heka-red)'};font-weight:${r.esIVA8?'800':'400'}">${r.iva>0?'$'+r.iva.toFixed(2)+( r.esIVA8?' <span title=\"IVA 8% Feriado Turístico\" style=\"background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:3px;padding:0 3px;font-size:8px;font-weight:800;vertical-align:middle\">8% 🏖</span>':'' ):''}</td>
+        <td class="td-num" style="color:${r.esIVA8?'#d97706':'var(--red)'};font-weight:${r.esIVA8?'800':'400'}">${r.iva>0?'$'+r.iva.toFixed(2)+( r.esIVA8?' <span title=\"IVA 8% Feriado Turístico\" style=\"background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:3px;padding:0 3px;font-size:8px;font-weight:800;vertical-align:middle\">8% 🏖</span>':'' ):''}</td>
         <td class="td-num" style="color:#c2410c">${r.propina>0?'$'+r.propina.toFixed(2):''}</td>
         <td class="td-num" style="color:#7e22ce">${r.ice>0?'$'+r.ice.toFixed(2):''}</td>
         <td class="td-num" style="font-weight:700">$${r.total.toFixed(2)}</td>
@@ -1821,7 +1572,7 @@ function render104A(){
   el.innerHTML=`
     <div class="alert alert-info" style="display:flex;justify-content:space-between;align-items:center">
       <div><strong>Formulario 104A — Persona Natural</strong><br><span style="font-size:10px">${a.nombre}</span></div>
-      <button onclick="resetVentas('${ventasKey}')" style="background:none;border:1px solid #bfdbfe;border-radius:5px;padding:2px 8px;font-size:10px;color:var(--heka-blue);cursor:pointer">↺ Limpiar</button>
+      <button onclick="resetVentas('${ventasKey}')" style="background:none;border:1px solid #bfdbfe;border-radius:5px;padding:2px 8px;font-size:10px;color:var(--blue);cursor:pointer">↺ Limpiar</button>
     </div>
     ${pendientes.length?`<div class="alert alert-warn" style="cursor:pointer" onclick="goTab('fix')">⚠️ <strong>${pendientes.length} factura${pendientes.length>1?'s':''} sin corregir.</strong> Casilleros 500/507 aproximados.</div>`:''}
 
@@ -1833,10 +1584,10 @@ function render104A(){
             : '— ingresa tus valores manualmente'}
         </span>
       </div>
-      ${cfEditable('401','Ventas locales gravadas tarifa 15% — base',ventas.v401||0,'blue','ventasKey')}
-      ${cfEditable('402','IVA cobrado en ventas 15%',ventas.v402||0,'blue','ventasKey')}
-      ${cfEditable('405','Ventas tarifa 0%',ventas.v405||0,'gray','ventasKey')}
-      ${cfEditable('411','Operaciones no objeto de IVA',ventas.v411||0,'gray','ventasKey')}
+      ${cfEditable('401','Ventas locales gravadas tarifa 15% — base',ventas.v401||0,'blue',ventasKey)}
+      ${cfEditable('402','IVA cobrado en ventas 15%',ventas.v402||0,'blue',ventasKey)}
+      ${cfEditable('405','Ventas tarifa 0%',ventas.v405||0,'gray',ventasKey)}
+      ${cfEditable('411','Operaciones no objeto de IVA',ventas.v411||0,'gray',ventasKey)}
     </div>
 
     <div class="card" style="padding:0;margin-top:10px">
@@ -1852,7 +1603,7 @@ function render104A(){
       <div style="padding:8px 14px;background:#1e3a5f;border-radius:7px 7px 0 0"><span style="color:#fff;font-size:11px;font-weight:700">⚖️ LIQUIDACIÓN</span></div>
       ${cf('601','Crédito tributario del período (IVA en compras)',t.c601||0,'green')}
       ${cfCalc('602','IVA causado = IVA ventas − crédito tributario',Math.max((ventas.v402||0)-(t.c601||0),0),'red')}
-      ${cfEditable('605','Saldo crédito tributario mes anterior (del 615 del mes pasado)',ventas.v605||0,'gray','ventasKey')}
+      ${cfEditable('605','Saldo crédito tributario mes anterior (del 615 del mes pasado)',ventas.v605||0,'gray',ventasKey)}
       ${cf('609','Retenciones de IVA recibidas'+(t.c609>0?' ✓ (de XMLs)':' — carga XMLs de retención'),t.c609||0,'purple',t.c609===0)}
       ${cfCalc('615',calcularResultado(ventas,t)>=0?'Impuesto a pagar':'Saldo a favor',Math.abs(calcularResultado(ventas,t)),calcularResultado(ventas,t)>=0?'red':'green')}
     </div>
@@ -1891,26 +1642,27 @@ function render104A(){
     </div>`;
 }
 
-function cfEditable(num,desc,val,color,ventasKeyName){
-  const bg={blue:'var(--heka-light)',green:'#dcfce7',red:'#fee2e2',gray:'#f3f4f6',purple:'#f3e8ff'};
-  const tc={blue:'var(--heka-blue)',green:'#15803d',red:'#dc2626',gray:'#6b7280',purple:'#7e22ce'};
+function cfEditable(num,desc,val,color,ventasKeyStr){
+  const bg={blue:'var(--blue-light)',green:'#dcfce7',red:'#fee2e2',gray:'#f3f4f6',purple:'#f3e8ff'};
+  const tc={blue:'var(--blue)',green:'#15803d',red:'#dc2626',gray:'#6b7280',purple:'#7e22ce'};
   const b=bg[color]||'#f3f4f6', c=tc[color]||'#374151';
+  const vkSafe = (ventasKeyStr||'').replace(/'/g,"\\'");
   return `<div class="casillero-row" style="background:#fffbeb">
-    <div class="cas-num" style="background:${b};color:${c}">${num}</div>
+    <div class="cas-num cas-num-blue" style="background:${b};color:${c}">${num}</div>
     <div class="cas-desc">${desc}</div>
     <div style="display:flex;align-items:center;gap:4px">
-      <span style="font-size:11px;color:#6b7280">$</span>
+      <span style="font-size:11px;color:var(--text-muted)">$</span>
       <input type="number" step="0.01" min="0" value="${val||0}"
-        style="width:80px;border:1.5px solid var(--heka-border);border-radius:5px;padding:3px 6px;font-size:12px;font-family:monospace;text-align:right;font-weight:700;color:${c}"
-        onchange="guardarVenta('${num}',this.value,${ventasKeyName})"
-        oninput="guardarVenta('${num}',this.value,${ventasKeyName})">
+        style="width:88px;border:1.5px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;font-family:monospace;text-align:right;font-weight:700;color:${c};outline:none"
+        onchange="guardarVenta('${num}',this.value,'${vkSafe}')"
+        oninput="guardarVenta('${num}',this.value,'${vkSafe}')">
     </div>
   </div>`;
 }
 
 function cfCalc(num,desc,val,color){
-  const bg={blue:'var(--heka-light)',green:'#dcfce7',red:'#fee2e2',gray:'#f3f4f6',purple:'#f3e8ff'};
-  const tc={blue:'var(--heka-blue)',green:'#15803d',red:'#dc2626',gray:'#6b7280',purple:'#7e22ce'};
+  const bg={blue:'var(--blue-light)',green:'#dcfce7',red:'#fee2e2',gray:'#f3f4f6',purple:'#f3e8ff'};
+  const tc={blue:'var(--blue)',green:'#15803d',red:'#dc2626',gray:'#6b7280',purple:'#7e22ce'};
   const b=bg[color]||'#f3f4f6', c=tc[color]||'#374151';
   return `<div class="casillero-row" style="background:#f0f9ff">
     <div class="cas-num" style="background:${b};color:${c}">${num}</div>
@@ -1927,7 +1679,8 @@ function calcularResultado(ventas,t){
   return +(ivaVentas - credito - retenciones - saldoAnt).toFixed(2);
 }
 
-function guardarVenta(casillero, valor, ventasKey){
+function guardarVenta(casillero, valor, ventasKey_){
+  const ventasKey = ventasKey_;
   try{
     const stored = JSON.parse(localStorage.getItem(ventasKey)||'{}');
     stored['v'+casillero] = parseFloat(valor)||0;
@@ -2230,10 +1983,10 @@ tr:nth-child(even) td{background:#f8faff}
 .total-row td{font-weight:800;background:#e8f4fd!important;border-top:2px solid var(--heka);color:var(--heka)}
 .nota{background:#fffbeb;border-left:4px solid #f59e0b;border-radius:4px;padding:8px 12px;margin:10px 0;font-size:10px}
 .nota-verde{background:#f0fdf4;border-left:4px solid #16a34a;border-radius:4px;padding:8px 12px;margin:10px 0;font-size:10px}
-.nota-azul{background:var(--heka-light);border-left:4px solid var(--heka);border-radius:4px;padding:8px 12px;margin:10px 0;font-size:10px}
+.nota-azul{background:var(--blue-light);border-left:4px solid var(--heka);border-radius:4px;padding:8px 12px;margin:10px 0;font-size:10px}
 .badge-xml{display:inline-block;background:#dcfce7;color:#15803d;border-radius:4px;padding:2px 7px;font-size:9px;font-weight:700}
 .badge-warn{display:inline-block;background:#fef9c3;color:#854d0e;border-radius:4px;padding:2px 7px;font-size:9px;font-weight:700}
-.fact-hdr{background:var(--heka-light);border:2px solid var(--heka);color:#111;border-radius:8px;padding:0;margin-bottom:14px;overflow:hidden}
+.fact-hdr{background:var(--blue-light);border:2px solid var(--heka);color:#111;border-radius:8px;padding:0;margin-bottom:14px;overflow:hidden}
 .fact-tipo{font-size:16px;font-weight:800;margin-bottom:4px;color:var(--heka)}
 .fact-serie{font-family:monospace;font-size:12px;color:var(--heka-dark)}
 .fact-ruc{font-size:10px;color:#6b7280;margin-top:3px}
@@ -2241,7 +1994,7 @@ tr:nth-child(even) td{background:#f8faff}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 .grid2-box{border:1.5px solid #d0e4f4;border-radius:6px;padding:8px 10px;background:#f8faff}
 .label{font-size:9px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
-.pie{margin-top:20px;font-size:9px;color:#9ca3af;border-top:2px solid var(--heka-light);padding-top:8px;display:flex;align-items:center;gap:8px}
+.pie{margin-top:20px;font-size:9px;color:#9ca3af;border-top:2px solid var(--blue-light);padding-top:8px;display:flex;align-items:center;gap:8px}
 .pie img{width:20px;height:20px;opacity:.6}
 @media print{body{padding:12px}button{display:none!important}@page{margin:15mm;size:A4}}
 </style></head><body>
@@ -2745,24 +2498,24 @@ function renderEmitidos(){
   html += `<div class="resumen-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:10px">
     <div class="resumen-box">
       <div class="resumen-label">Base Gravada — Cas. 401</div>
-      <div class="resumen-value" style="color:var(--heka-green)">$${te.c401.toFixed(2)}</div>
-      ${te.nSinXML>0?`<div style="font-size:9px;color:#c2410c;margin-top:2px">⚠ ${te.nSinXML} sin XML — estimado</div>`:'<div style="font-size:9px;color:var(--heka-green);margin-top:2px">✓ valores exactos</div>'}
+      <div class="resumen-value" style="color:var(--green)">$${te.c401.toFixed(2)}</div>
+      ${te.nSinXML>0?`<div style="font-size:9px;color:#c2410c;margin-top:2px">⚠ ${te.nSinXML} sin XML — estimado</div>`:'<div style="font-size:9px;color:var(--green);margin-top:2px">✓ valores exactos</div>'}
     </div>
     <div class="resumen-box">
       <div class="resumen-label">IVA Cobrado — Cas. 402</div>
-      <div class="resumen-value" style="color:var(--heka-red)">$${te.c402.toFixed(2)}</div>
+      <div class="resumen-value" style="color:var(--red)">$${te.c402.toFixed(2)}</div>
     </div>
     <div class="resumen-box">
       <div class="resumen-label">Base 0% — Cas. 405</div>
-      <div class="resumen-value" style="color:var(--heka-muted)">$${te.c405.toFixed(2)}</div>
+      <div class="resumen-value" style="color:var(--text-muted)">$${te.c405.toFixed(2)}</div>
     </div>
     <div class="resumen-box">
       <div class="resumen-label">Total Ventas</div>
-      <div class="resumen-value" style="color:var(--heka-blue)">$${te.totalVentas.toFixed(2)}</div>
+      <div class="resumen-value" style="color:var(--blue)">$${te.totalVentas.toFixed(2)}</div>
     </div>
     <div class="resumen-box" style="grid-column:span 2">
       <div class="resumen-label">→ Estos valores van automáticamente al 104A</div>
-      <div style="font-size:11px;color:var(--heka-blue);margin-top:3px">
+      <div style="font-size:11px;color:var(--blue);margin-top:3px">
         Ve a la pestaña 🧾 104A para ver el formulario completo con ventas + compras
       </div>
     </div>
@@ -2778,7 +2531,7 @@ function renderEmitidos(){
 
   // Tabla
   html += `<div class="card" style="padding:0">
-    <div style="padding:8px 12px;border-bottom:1px solid var(--heka-border);display:flex;justify-content:space-between;align-items:center">
+    <div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
       <span style="font-size:11px;font-weight:700">Detalle de facturas emitidas</span>
       <span class="badge badge-blue">Portal SRI</span>
     </div>
@@ -2797,21 +2550,21 @@ function renderEmitidos(){
         <td style="font-size:9px;white-space:nowrap">
           <div style="font-family:monospace">${r.serie}</div>
           <div style="margin-top:3px">
-            <button onclick="imprimirPDFEmitida(${idx})" style="background:${r.tieneXML?'var(--heka-blue)':'#f3f4f6'};color:${r.tieneXML?'#fff':'#6b7280'};border:${r.tieneXML?'none':'1px solid #d1d5db'};border-radius:4px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:600">🖨️ PDF</button>
+            <button onclick="imprimirPDFEmitida(${idx})" style="background:${r.tieneXML?'var(--blue)':'#f3f4f6'};color:${r.tieneXML?'#fff':'#6b7280'};border:${r.tieneXML?'none':'1px solid #d1d5db'};border-radius:4px;padding:2px 8px;font-size:9px;cursor:pointer;font-weight:600">🖨️ PDF</button>
             ${!r.tieneXML?'<span style="font-size:9px;color:#c2410c;margin-left:3px">est.</span>':''}
           </div>
         </td>
         <td style="font-size:10px">${r.FECHA_EMISION||''}</td>
         <td class="td-num td-green">${r.base15>0?'$'+r.base15.toFixed(2):''}</td>
         <td class="td-num">${r.base0>0?'$'+r.base0.toFixed(2):''}</td>
-        <td class="td-num" style="color:${r.esIVA8?'#d97706':'var(--heka-red)'};font-weight:${r.esIVA8?'800':'400'}">${r.iva>0?'$'+r.iva.toFixed(2)+( r.esIVA8?' <span title=\"IVA 8% Feriado Turístico\" style=\"background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:3px;padding:0 3px;font-size:8px;font-weight:800;vertical-align:middle\">8% 🏖</span>':'' ):''}</td>
+        <td class="td-num" style="color:${r.esIVA8?'#d97706':'var(--red)'};font-weight:${r.esIVA8?'800':'400'}">${r.iva>0?'$'+r.iva.toFixed(2)+( r.esIVA8?' <span title=\"IVA 8% Feriado Turístico\" style=\"background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:3px;padding:0 3px;font-size:8px;font-weight:800;vertical-align:middle\">8% 🏖</span>':'' ):''}</td>
         <td class="td-num" style="font-weight:700">$${r.total.toFixed(2)}</td>
       </tr>`).join('')}</tbody>
-      <tfoot><tr style="background:var(--heka-light)">
-        <td colspan="3" style="font-weight:800;color:var(--heka-blue);padding:6px 9px">TOTALES</td>
-        <td class="td-num" style="font-weight:800;color:var(--heka-green)">$${te.c401.toFixed(2)}</td>
+      <tfoot><tr style="background:var(--blue-light)">
+        <td colspan="3" style="font-weight:800;color:var(--blue);padding:6px 9px">TOTALES</td>
+        <td class="td-num" style="font-weight:800;color:var(--green)">$${te.c401.toFixed(2)}</td>
         <td class="td-num" style="font-weight:800">$${te.c405.toFixed(2)}</td>
-        <td class="td-num" style="font-weight:800;color:var(--heka-red)">$${te.c402.toFixed(2)}</td>
+        <td class="td-num" style="font-weight:800;color:var(--red)">$${te.c402.toFixed(2)}</td>
         <td class="td-num" style="font-weight:800">$${te.totalVentas.toFixed(2)}</td>
       </tr></tfoot>
       </table>
@@ -2937,7 +2690,7 @@ function toggleComparador(){
   const btn = document.getElementById('btnComparador');
   if(!panel) return;
   panel.style.display = comparadorVisible ? 'block' : 'none';
-  btn.style.background = comparadorVisible ? 'var(--heka-blue)' : '';
+  btn.style.background = comparadorVisible ? 'var(--blue)' : '';
   btn.style.color = comparadorVisible ? '#fff' : '';
   if(comparadorVisible) poblarSelectoresMeses();
 }
@@ -3120,9 +2873,9 @@ function renderMeses(){
 
   el.innerHTML=`
   <div class="resumen-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:12px">
-    <div class="resumen-box"><div class="resumen-label">Períodos</div><div class="resumen-value" style="color:var(--heka-blue)">${meses.length}</div></div>
-    <div class="resumen-box"><div class="resumen-label">Base Gravada acum.</div><div class="resumen-value" style="color:var(--heka-green)">$${acum.c500.toFixed(2)}</div></div>
-    <div class="resumen-box"><div class="resumen-label">IVA acumulado</div><div class="resumen-value" style="color:var(--heka-red)">$${acum.c501.toFixed(2)}</div></div>
+    <div class="resumen-box"><div class="resumen-label">Períodos</div><div class="resumen-value" style="color:var(--blue)">${meses.length}</div></div>
+    <div class="resumen-box"><div class="resumen-label">Base Gravada acum.</div><div class="resumen-value" style="color:var(--green)">$${acum.c500.toFixed(2)}</div></div>
+    <div class="resumen-box"><div class="resumen-label">IVA acumulado</div><div class="resumen-value" style="color:var(--red)">$${acum.c501.toFixed(2)}</div></div>
   </div>
   <div class="card" style="padding:0">
     <div class="section-hdr">📅 Comparativo por período</div>
@@ -3133,21 +2886,21 @@ function renderMeses(){
         const mesN=MESES_ES[parseInt(mes||0)]||(m.mesKey||'—');
         const activo=!!cargadosActuales[m.mesKey];
         return `<tr style="${i%2?'background:#f8faff':''}">
-          <td style="font-weight:700;color:var(--heka-blue);white-space:nowrap">${mesN} ${anio||''}</td>
+          <td style="font-weight:700;color:var(--blue);white-space:nowrap">${mesN} ${anio||''}</td>
           <td class="td-num td-green">$${(m.resumen.c500||0).toFixed(2)}</td>
           <td class="td-num td-red">$${(m.resumen.c501||0).toFixed(2)}</td>
           <td class="td-num">$${(m.resumen.c507||0).toFixed(2)}</td>
           <td class="td-num" style="font-weight:700">$${(m.resumen.totalImporte||0).toFixed(2)}</td>
           <td style="font-size:10px;white-space:nowrap">
-            ${activo?'<span style="color:var(--heka-blue);font-weight:700">● activo</span>':'<span style="color:#9ca3af">guardado</span>'}
+            ${activo?'<span style="color:var(--blue);font-weight:700">● activo</span>':'<span style="color:#9ca3af">guardado</span>'}
             ${(m.resumen.nPendientes||0)>0?`<span style="color:#c2410c"> ⚠${m.resumen.nPendientes}</span>`:''}
           </td>
         </tr>`;
       }).join('')}</tbody>
-      <tfoot><tr style="background:var(--heka-light)">
-        <td style="font-weight:800;color:var(--heka-blue)">TOTAL</td>
-        <td class="td-num" style="font-weight:800;color:var(--heka-green)">$${acum.c500.toFixed(2)}</td>
-        <td class="td-num" style="font-weight:800;color:var(--heka-red)">$${acum.c501.toFixed(2)}</td>
+      <tfoot><tr style="background:var(--blue-light)">
+        <td style="font-weight:800;color:var(--blue)">TOTAL</td>
+        <td class="td-num" style="font-weight:800;color:var(--green)">$${acum.c500.toFixed(2)}</td>
+        <td class="td-num" style="font-weight:800;color:var(--red)">$${acum.c501.toFixed(2)}</td>
         <td class="td-num" style="font-weight:800">$${acum.c507.toFixed(2)}</td>
         <td class="td-num" style="font-weight:800">$${acum.totalImporte.toFixed(2)}</td>
         <td></td>
@@ -3155,7 +2908,7 @@ function renderMeses(){
     </table></div>
   </div>
   <div style="margin-top:10px;display:flex;gap:8px">
-    <button class="btn btn-outline btn-sm" style="color:var(--heka-red);border-color:var(--heka-red)" onclick="limpiarHistorico()">🗑 Limpiar histórico</button>
+    <button class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)" onclick="limpiarHistorico()">🗑 Limpiar histórico</button>
   </div>`;
 }
 
@@ -3288,6 +3041,7 @@ function cerrarTutorial(){
   document.getElementById('tut-overlay')?.remove();
   try{localStorage.setItem('heka_tutorial_done','1');}catch(e){}
 }
+
 
 
 </script>
