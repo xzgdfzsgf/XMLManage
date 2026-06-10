@@ -1990,54 +1990,280 @@ async function exportTXT(p,hoja){
 
 
 async function exportar104AExcel(){
-  const a=archivos.find(x=>x.id===activoId);
-  if(!a?.parsed?.totales){alert('Carga un TXT primero');return;}
-  if(!isOfficeReady()){showMsg('⚠ Office no listo','error');return;}
-  const t=a.parsed.totales;
+  const a = archivos.find(x=>x.id===activoId);
+  if(!a?.parsed?.totales){ alert('Carga un TXT primero'); return; }
+  if(!isOfficeReady()){ showMsg('⚠ Office no listo','error'); return; }
+
+  const t  = a.parsed.totales;
+  const p  = a.parsed;
+
+  // Ventas — desde emitidos o manual
+  const aEmit = archivosEmitidos.find(x=>x.esEmitidosPrincipal);
+  const ventasKey = 'heka_ventas_'+(extraerMesKey(p,a.nombre)||'sin_mes');
+  let v = {};
+  try{ v = JSON.parse(localStorage.getItem(ventasKey)||'{}'); }catch(e){}
+  if(aEmit?.parsed?.totalesEmitidos){
+    const te = aEmit.parsed.totalesEmitidos;
+    if(te.c401>0) v.v401=te.c401;
+    if(te.c402>0) v.v402=te.c402;
+    if(te.c405>0) v.v405=te.c405;
+    if(te.c411>0) v.v411=te.c411;
+  }
+
+  // Valores calculados
+  const c401 = v.v401||0;
+  const c402 = v.v402||0;
+  const c405 = v.v405||0;
+  const c411 = v.v411||0;
+  const c500 = (t.c500||0)-(t.totalBase530||0);
+  const c501 = (t.c501||0)-(t.totalIVA530||0);
+  const c530 = t.totalBase530||0;
+  const c522 = t.totalIVA530||0;
+  const c507 = t.totalBase0||0;
+  const c605 = v.v605||0;
+  const c609 = t.c609||0;
+  const c601 = c501+c522;           // crédito = IVA pagado
+  const ivaVentas = c402;
+  const subtotal = ivaVentas - c601 - c609 - c605;
+  const c699 = subtotal>0 ? subtotal : 0;
+  const c615 = subtotal<0 ? Math.abs(subtotal) : 0;
+
+  const FMT  = '_("$"* #,##0.00_);_("$"* (#,##0.00);_("$"* "-"??_);_(@_)';
+  const FMTC = '@';  // texto
+  const mesAnio = extraerMesKey(p,a.nombre)||'';
+
   showProgress(true);
   try{
     await Excel.run(async ctx=>{
       const sheets=ctx.workbook.worksheets;
-      sheets.load('items/name');await ctx.sync();
+      sheets.load('items/name'); await ctx.sync();
       let ws;
-      const existe=sheets.items.find(s=>s.name==='104A_Casilleros');
-      if(existe){ws=existe;ws.getUsedRange().clear();await ctx.sync();}else{ws=sheets.add('104A_Casilleros');}
-      ws.activate();await ctx.sync();
-      const data=[
-        ['FORMULARIO 104A — DECLARACIÓN IVA — PERSONA NATURAL','','',''],
-        ['Archivo: '+a.nombre,'','',''],
-        ['','','',''],
-        ['SECCIÓN','CASILLERO','DESCRIPCIÓN','VALOR'],
-        ['VENTAS','401','Ventas locales gravadas tarifa 15% — base','(manual)'],
-        ['VENTAS','402','IVA cobrado en ventas 15%','(manual)'],
-        ['VENTAS','405','Ventas tarifa 0%','(manual)'],
-        ['VENTAS','411','Operaciones no objeto de IVA','(manual)'],
-        ['','','',''],
-        ['ADQUISICIONES','500','Adquisiciones gravadas tarifa 15% — base imponible',t.c500||0],
-        ['ADQUISICIONES','501','IVA pagado en adquisiciones tarifa 15%',t.c501||0],
-        ['ADQUISICIONES','507','Adquisiciones y pagos tarifa 0%',t.c507||0],
-        ['ADQUISICIONES','509','Adquisiciones no objeto de IVA',t.c509||0],
-        ['ADQUISICIONES','510','Adquisiciones exentas de IVA',t.c510||0],
-        ['','','',''],
-        ['LIQUIDACIÓN','601','Crédito tributario del período',t.c601||0],
-        ['LIQUIDACIÓN','602','IVA causado (si aplica)','(SRI calcula)'],
-        ['LIQUIDACIÓN','605','Saldo crédito tributario mes anterior','(manual)'],
-        ['LIQUIDACIÓN','609','Retenciones de IVA recibidas','(manual)'],
-        ['LIQUIDACIÓN','615','Saldo a pagar / a favor','(SRI calcula)'],
-        ['','','',''],
-        ['NOTA','—','Propina acumulada (NO declara)',t.totalPropina||0],
-      ];
-      ws.getRange(`A1:D${data.length}`).values=data;
-      ws.getRange('A1:D1').format.fill.color='#1e3a5f';ws.getRange('A1:D1').format.font.color='#ffffff';ws.getRange('A1:D1').format.font.bold=true;
-      ws.getRange('A4:D4').format.fill.color='#e8f0fe';ws.getRange('A4:D4').format.font.bold=true;
-      [10,11,12,13,14,16].forEach(r=>{ ws.getRange(`A${r}:D${r}`).format.fill.color='#f0fdf4'; ws.getRange(`D${r}`).format.font.bold=true; });
-      ws.getRange('D5:D22').numberFormat=[['#,##0.00']];
-      ws.getUsedRange().format.autofitColumns();
+      const HOJA = '104A';
+      const existe=sheets.items.find(s=>s.name===HOJA);
+      if(existe){ws=existe; ws.getUsedRange().clear(); await ctx.sync();}
+      else{ ws=sheets.add(HOJA); }
+      ws.activate(); await ctx.sync();
+
+      // ──────────────────────────────────────────────
+      // LAYOUT — replica el formulario 104A del SRI
+      // Columna A: descripción | C: casillero | D: valor
+      // ──────────────────────────────────────────────
+
+      // Helper: set a row
+      const R = (row, desc, cas, val, nota) => {
+        if(desc !== null) ws.getRange(`A${row}`).values=[[desc]];
+        if(cas  !== null) ws.getRange(`C${row}`).values=[[cas]];
+        if(val  !== null) ws.getRange(`D${row}`).values=[[val]];
+        if(nota !== null) ws.getRange(`E${row}`).values=[[nota]];
+      };
+
+      // ── Título ──
+      ws.getRange('A1').values=[['FORMULARIO 104A — DECLARACIÓN DEL IMPUESTO AL VALOR AGREGADO']];
+      ws.getRange('A1:E1').merge(true);
+      ws.getRange('A1').format.fill.color='#0f1117';
+      ws.getRange('A1').format.font.color='#ffffff';
+      ws.getRange('A1').format.font.bold=true;
+      ws.getRange('A1').format.font.size=12;
+      ws.getRange('A1').format.rowHeight=28;
+
+      ws.getRange('A2').values=[['PERSONA NATURAL NO OBLIGADA A LLEVAR CONTABILIDAD']];
+      ws.getRange('A2:E2').merge(true);
+      ws.getRange('A2').format.font.italic=true;
+      ws.getRange('A2').format.font.color='#6b7280';
+      ws.getRange('A2').format.font.size=9;
+
+      // ── Identificación ──
+      ws.getRange('A3').values=[['Período: '+mesAnio]];
+      ws.getRange('C3').values=[['Archivo:']];
+      ws.getRange('D3').values=[[a.nombre]];
+      ws.getRange('A3').format.font.bold=true;
+
       await ctx.sync();
-      showProgress(false);showMsg('✓ Casilleros 104A exportados','success');
+
+      // ── Cabecera de tabla ──
+      const hdrRow = 5;
+      ws.getRange(`A${hdrRow}:E${hdrRow}`).values=[['DESCRIPCIÓN','','CAS.','VALOR ($)','FUENTE']];
+      ws.getRange(`A${hdrRow}:E${hdrRow}`).format.fill.color='#1e3a5f';
+      ws.getRange(`A${hdrRow}:E${hdrRow}`).format.font.color='#ffffff';
+      ws.getRange(`A${hdrRow}:E${hdrRow}`).format.font.bold=true;
+      ws.getRange(`A${hdrRow}:E${hdrRow}`).format.font.size=9;
+
+      // ── SECCIÓN VENTAS ──
+      let r = hdrRow+1;
+      ws.getRange(`A${r}:E${r}`).values=[['RESUMEN DE VENTAS Y OTRAS OPERACIONES','','','','']];
+      ws.getRange(`A${r}:E${r}`).format.fill.color='#e8f4fd';
+      ws.getRange(`A${r}`).format.font.bold=true;
+      ws.getRange(`A${r}`).format.font.color='#0f1117';
+
+      const ventasSrc = aEmit ? '✓ auto (emitidos)' : '⚠ manual';
+      r++;
+      R(r,'Ventas locales (excluye AF) gravadas tarifa diferente de cero — BASE','401',c401,ventasSrc);
+      r++;
+      R(r,'Ventas locales (excluye AF) gravadas tarifa 0% con derecho a CT','405',c405,ventasSrc);
+      r++;
+      R(r,'Transferencias no objeto o exentas de IVA','411',c411,ventasSrc);
+      r++;
+      R(r,'TOTAL VENTAS Y OTRAS OPERACIONES','409',null,'');
+      ws.getRange(`D${r}`).formulas=[[`=D${r-3}+D${r-2}+D${r-1}`]];
+      ws.getRange(`A${r}`).format.font.bold=true;
+      ws.getRange(`D${r}`).format.font.bold=true;
+      r++;
+      R(r,'IVA generado en ventas (tarifa 15%)','421',null,'');
+      ws.getRange(`D${r}`).formulas=[[`=D${r-4}*0.15`]];  // 401 * 15%
+      ws.getRange(`A${r}`).format.font.bold=true;
+      ws.getRange(`D${r}`).format.font.bold=true;
+
+      // ── SECCIÓN ADQUISICIONES ──
+      r+=2;
+      const adqRow = r;
+      ws.getRange(`A${r}:E${r}`).values=[['RESUMEN DE ADQUISICIONES Y PAGOS','','','','']];
+      ws.getRange(`A${r}:E${r}`).format.fill.color='#f0fdf4';
+      ws.getRange(`A${r}`).format.font.bold=true;
+
+      r++;
+      R(r,'Adquisiciones y pagos gravados tarifa 15% (con derecho a CT) — BASE','500',c500,'✓ del TXT');
+      r++;
+      R(r,'Adquisiciones locales de activos fijos gravados tarifa 15% (CT)','501',0,'');
+      r++;
+      if(c530>0){
+        R(r,'Adquisiciones gravados tarifa variable 8% (feriados) — BASE','530',c530,'✓ del TXT');
+        r++;
+      }
+      R(r,'Adquisiciones y pagos gravados tarifa 0%','507',c507,'✓ del TXT');
+      r++;
+      R(r,'TOTAL ADQUISICIONES Y PAGOS','509',null,'');
+      ws.getRange(`D${r}`).formulas=[[`=D${r-1}+D${r-2}${c530>0?`+D${r-3}`:''}`]];
+      ws.getRange(`A${r}`).format.font.bold=true;
+      ws.getRange(`D${r}`).format.font.bold=true;
+      const row509 = r;
+
+      // IVA pagado
+      r++;
+      R(r,'IVA pagado en adquisiciones tarifa 15%','520',c501,'✓ del TXT');
+      const row520 = r;
+      if(c530>0){
+        r++;
+        R(r,'IVA pagado en adquisiciones tarifa variable 8%','522',c522,'✓ del TXT');
+      }
+      r++;
+      R(r,'TOTAL IVA PAGADO (crédito tributario)','564',null,'');
+      ws.getRange(`D${r}`).formulas=[[`=D${row520}${c530>0?`+D${row520+1}`:''}`]];
+      ws.getRange(`A${r}`).format.font.bold=true;
+      ws.getRange(`D${r}`).format.font.bold=true;
+      const row564 = r;
+
+      // ── SECCIÓN LIQUIDACIÓN ──
+      r+=2;
+      ws.getRange(`A${r}:E${r}`).values=[['RESUMEN IMPOSITIVO — LIQUIDACIÓN','','','','']];
+      ws.getRange(`A${r}:E${r}`).format.fill.color='#fff3cd';
+      ws.getRange(`A${r}`).format.font.bold=true;
+
+      r++;
+      R(r,'IVA cobrado en ventas (tarifa diferente de cero)','499',c402,ventasSrc);
+      const row499 = r;
+
+      r++;
+      R(r,'(-) Crédito tributario aplicable en este período','564 →',null,'');
+      ws.getRange(`D${r}`).formulas=[[`=D${row564}`]];
+      const row564ref = r;
+
+      r++;
+      R(r,'(-) Saldo crédito tributario mes anterior (del 615 del mes pasado)','605',c605,'⚠ manual');
+      ws.getRange(`A${r}`).format.fill.color='#fffbeb';
+      const row605 = r;
+
+      r++;
+      R(r,'(-) Retenciones de IVA que le efectuaron en este período','609',c609,'');
+      const row609 = r;
+
+      r++;
+      R(r,'IMPUESTO CAUSADO (si 499 - 564 - 605 - 609 > 0)','601',null,'');
+      ws.getRange(`D${r}`).formulas=[[`=MAX(D${row499}-D${row564ref}-D${row605}-D${row609},0)`]];
+      ws.getRange(`A${r}`).format.fill.color='#fef2f2';
+      ws.getRange(`D${r}`).format.font.bold=true;
+      ws.getRange(`D${r}`).format.font.color='#dc2626';
+      const row601 = r;
+
+      r++;
+      R(r,'SALDO A FAVOR (para el próximo mes) — trasladar al 605','615',null,'');
+      ws.getRange(`D${r}`).formulas=[[`=MAX(D${row564ref}+D${row605}+D${row609}-D${row499},0)`]];
+      ws.getRange(`A${r}`).format.fill.color='#f0fdf4';
+      ws.getRange(`D${r}`).format.font.bold=true;
+      ws.getRange(`D${r}`).format.font.color='#15803d';
+      const row615 = r;
+
+      r++;
+      R(r,'TOTAL IMPUESTO A PAGAR (trasladar al SRI)','699',null,'');
+      ws.getRange(`D${r}`).formulas=[[`=D${row601}`]];
+      ws.getRange(`A${r}:E${r}`).format.fill.color='#0f1117';
+      ws.getRange(`A${r}:E${r}`).format.font.color='#ffffff';
+      ws.getRange(`A${r}`).format.font.bold=true;
+      ws.getRange(`D${r}`).format.font.bold=true;
+      ws.getRange(`D${r}`).format.font.size=13;
+
+      // ── NOTA PROPINA ──
+      r+=2;
+      ws.getRange(`A${r}`).values=[['INFORMACIÓN COMPLEMENTARIA (no declara en IVA)']];
+      ws.getRange(`A${r}`).format.font.bold=true;
+      ws.getRange(`A${r}`).format.font.color='#6b7280';
+      ws.getRange(`A${r}`).format.font.size=8;
+      r++;
+      R(r,'Propina acumulada (DS 1269 — no es base imponible)','—',t.totalPropina||0,'');
+      ws.getRange(`A${r}`).format.font.color='#6b7280';
+      ws.getRange(`D${r}`).format.font.color='#6b7280';
+
+      // ── Aplicar formato a toda la tabla ──
+      const dataStart = hdrRow+1;
+      const dataEnd   = r;
+      // Formato contabilidad en col D
+      ws.getRange(`D${dataStart}:D${dataEnd}`).numberFormat=[[FMT]];
+      // Bordes en tabla
+      const tableRng = ws.getRange(`A${hdrRow}:E${dataEnd}`);
+      tableRng.format.borders.getItem('InsideHorizontal').style='Continuous';
+      tableRng.format.borders.getItem('InsideHorizontal').color='#e5e7eb';
+      tableRng.format.borders.getItem('InsideHorizontal').weight='Thin';
+      tableRng.format.borders.getItem('EdgeLeft').style='Continuous';
+      tableRng.format.borders.getItem('EdgeLeft').color='#0f1117';
+      tableRng.format.borders.getItem('EdgeRight').style='Continuous';
+      tableRng.format.borders.getItem('EdgeRight').color='#0f1117';
+      tableRng.format.borders.getItem('EdgeBottom').style='Continuous';
+      tableRng.format.borders.getItem('EdgeBottom').color='#0f1117';
+
+      // Col C (casillero) — negrita centrada
+      ws.getRange(`C${dataStart}:C${dataEnd}`).format.font.bold=true;
+      ws.getRange(`C${dataStart}:C${dataEnd}`).format.horizontalAlignment='Center';
+      ws.getRange(`C${dataStart}:C${dataEnd}`).format.fill.color='#f8faff';
+
+      // Fuente (col E) — pequeña y gris
+      ws.getRange(`E${dataStart}:E${dataEnd}`).format.font.size=8;
+      ws.getRange(`E${dataStart}:E${dataEnd}`).format.font.italic=true;
+      ws.getRange(`E${dataStart}:E${dataEnd}`).format.font.color='#9ca3af';
+
+      // Col A ancho grande
+      ws.getColumn(1).format.columnWidth=55;
+      ws.getColumn(3).format.columnWidth=8;
+      ws.getColumn(4).format.columnWidth=16;
+      ws.getColumn(5).format.columnWidth=20;
+
+      // Fuente global
+      ws.getUsedRange().format.font.name='Segoe UI';
+      ws.getUsedRange().format.font.size=10;
+      ws.getUsedRange().format.verticalAlignment='Center';
+      ws.getUsedRange().format.rowHeight=20;
+
+      ws.freezePanes.freezeRows(hdrRow);
+      await ctx.sync();
+
+      showProgress(false);
+      showMsg('✓ Formulario 104A exportado → hoja "104A"','success');
     });
-  }catch(e){showProgress(false);showMsg('✗ '+(e.message||String(e)),'error');console.error(e);}
+  }catch(e){
+    showProgress(false);
+    showMsg('✗ '+(e.debugInfo?.message||e.message||String(e)),'error');
+    console.error('104A export:',e);
+  }
 }
+
 
 // ══════════════════════════════════════════════════════════
 // EXPORTAR PDF — abre ventana de impresión con layout limpio
