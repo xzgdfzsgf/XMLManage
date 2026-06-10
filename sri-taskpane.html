@@ -1640,13 +1640,15 @@ function render104A(){
     ${pendientes.length?`<div class="alert alert-warn" style="cursor:pointer" onclick="goTab('fix')">⚠️ <strong>${pendientes.length} factura${pendientes.length>1?'s':''} sin corregir.</strong> Casilleros 500/507 aproximados.</div>`:''}
 
     <div class="card" style="padding:0">
-      <div class="section-hdr">📤 VENTAS / INGRESOS
-        <span style="font-weight:400;font-size:10px;opacity:.85">
-          ${archivosEmitidos.find(x=>x.esEmitidosPrincipal)
-            ? '✓ calculado desde facturas emitidas'
-            : '— ingresa tus valores manualmente'}
-        </span>
-      </div>
+      <div class="section-hdr">📤 VENTAS / INGRESOS</div>
+      ${archivosEmitidos.find(x=>x.esEmitidosPrincipal)
+        ? `<div style="background:#f0fdf4;border-bottom:1px solid #bbf7d0;padding:7px 14px;font-size:10px;color:#15803d;font-weight:600">
+             ✓ Valores calculados automáticamente desde facturas emitidas cargadas
+           </div>`
+        : `<div style="background:#fffbeb;border-bottom:1px solid #fde68a;padding:7px 14px;font-size:10px;color:#92400e">
+             📤 Carga el TXT de <strong>Comprobantes Emitidos</strong> del portal SRI para llenado automático,
+             o ingresa manualmente:
+           </div>`}
       ${cfEditable('401','Ventas locales gravadas tarifa 15% — base',ventas.v401||0,'blue',ventasKey)}
       ${cfEditable('402','IVA cobrado en ventas 15%',ventas.v402||0,'blue',ventasKey)}
       ${cfEditable('405','Ventas tarifa 0%',ventas.v405||0,'gray',ventasKey)}
@@ -1789,7 +1791,8 @@ function cf(num,desc,val,color,esManual=false,esIVA=false){
 // ══════════════════════════════════════════════════════════
 async function exportarActivo(){
   const a=archivos.find(x=>x.id===activoId);
-  if(!a?.parsed){alert('Selecciona un archivo primero');return;}
+  if(!a?.parsed){showToast('⚠ Selecciona un archivo primero','warn');goTab('cargar');return;}
+  if(!isOfficeReady()){showToast('⚠ El complemento no está conectado a Excel. Ábrelo desde el complemento instalado en Excel.','error');return;}
   const hoja=a.nombre.replace(/\.[^.]+$/,'').replace(/[\/\\*\[\]?:]/g,'_').substring(0,31);
   mostrarValidacion(a.parsed, ()=>exportTXT(a.parsed,hoja));
 }
@@ -1804,7 +1807,7 @@ async function exportarTodos(){
 }
 
 async function exportTXT(p,hoja){
-  if(!isOfficeReady()){showMsg('⚠ Office no listo','error');return;}
+  if(!isOfficeReady()){showMsg('⚠ Office no listo. Abre el complemento desde Excel.','error');return;}
   showProgress(true);
   try{
     await Excel.run(async ctx=>{
@@ -1818,151 +1821,159 @@ async function exportTXT(p,hoja){
 
       if(!p.esPortalSRI){ await ctx.sync(); showProgress(false); return; }
 
-      const useFml   = document.getElementById('chkFormula')?.checked!==false;
-      const useProp  = document.getElementById('chkPropina')?.checked!==false;
-      const rows     = p.rowsClasif;
-      const nRows    = rows.length;
+      const rows  = p.rowsClasif;
+      const nRows = rows.length;
 
-      // ══════════════════════════════════════════════════════════
-      // COLUMNAS — replica exacta de tu hoja Compras
-      // Col:  A           B                   C                 D                  E              F                   G              H                       I        J             K              L        M          N      O              P         Q     R              S          T
+      // ── Formato contabilidad Ecuador ──
+      // Muestra: $ 23,47  /  $ -  para ceros  /  $ (23,47) para negativos
+      const FMT  = '_("$"* #,##0.00_);_("$"* (#,##0.00);_("$"* "-"??_);_(@_)';
+      const FMT0 = '@';  // texto plano
+
+      // ── Columnas exactas de tu hoja Compras ──
+      // A  B                   C               D                E             F                   G              H                       I       J             K              L        M          N    O      P        Q        R         S               T         U
       const hdrs=[
-        'RUC_EMISOR',       'RAZON_SOCIAL_EMISOR','TIPO_COMPROBANTE','SERIE_COMPROBANTE','CLAVE_ACCESO','FECHA_AUTORIZACION','FECHA_EMISION','IDENTIFICACION_RECEPTOR',
+        'RUC_EMISOR','RAZON_SOCIAL_EMISOR','TIPO_COMPROBANTE','SERIE_COMPROBANTE','CLAVE_ACCESO',
+        'FECHA_AUTORIZACION','FECHA_EMISION','IDENTIFICACION_RECEPTOR',
         'CODIGO',
         'Base excenta','No objeto iva','Base 0%','BASE 15%','IVA','Total',
-        'PROPINA',
-        'TARIFA',
-        'Deducible','Tipo de gasto','Observaciones',
-        'CORREGIDO_XML'
+        'PROPINA','TARIFA',
+        'Deducible ⚠','Tipo de gasto ⚠','Observaciones',
+        'MES','CORREGIDO_XML'
       ];
-      // Índices base-0 de cada columna
-      // A=0 B=1 C=2 D=3 E=4 F=5 G=6 H=7 I=8 J=9 K=10 L=11 M=12 N=13 O=14 P=15 Q=16 R=17 S=18 T=19 U=20
-      const nCols = hdrs.length; // 21
+      const nCols = hdrs.length; // 22
 
-      // ── ENCABEZADO ──
-      const hdrRange = ws.getRange(`A1:${colL(nCols)}1`);
-      hdrRange.values       = [hdrs];
-      hdrRange.format.fill.color  = '#0f1117';
-      hdrRange.format.font.color  = '#ffffff';
-      hdrRange.format.font.bold   = true;
-      hdrRange.format.font.name   = 'Segoe UI';
-      hdrRange.format.font.size   = 9;
-      hdrRange.format.rowHeight   = 22;
+      // ── Encabezado ──
+      const hRng = ws.getRange(`A1:${colL(nCols)}1`);
+      hRng.values                = [hdrs];
+      hRng.format.fill.color     = '#0f1117';
+      hRng.format.font.color     = '#ffffff';
+      hRng.format.font.bold      = true;
+      hRng.format.font.name      = 'Segoe UI';
+      hRng.format.font.size      = 9;
+      hRng.format.rowHeight      = 22;
 
-      // ── Columnas de texto (no formatear como número) ──
-      ['A','D','E','H'].forEach(c=>{
-        ws.getRange(`${c}2:${c}${nRows+1}`).numberFormat=[['@']];
+      // ── Cabeceras de columnas ⚠ en amarillo ──
+      ['R','S'].forEach(c=>{
+        const cell = ws.getRange(`${c}1`);
+        cell.format.fill.color = '#fef3c7';
+        cell.format.font.color = '#92400e';
+      });
+
+      // ── Texto forzado en ciertas columnas ──
+      ['A','D','E','H','I'].forEach(c=>{
+        ws.getRange(`${c}2:${c}${nRows+1}`).numberFormat = [[FMT0]];
       });
       await ctx.sync();
 
-      // ── DATOS ──
-      // Formato contabilidad: $ alineado, ceros como "-"
-      // '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)'
-      const FMT_CONT = '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)';
-      const FMT_TEXT = '@';
-
+      // ── DATOS — valores planos primero ──
       const bloque = rows.map((r,i)=>{
-        // Código SRI según clasificación
-        const codigo = r.esNC ? '510' : r.es530 ? '530' : r.iva===0 ? '507' : r.baseExenta>0 ? '532' : r.baseNoObje>0 ? '531' : '500';
-        const deducible = r.iva>0 ? (r.baseGravada||0) : (r.base0||0); // default = base relevante
+        const codigo = r.esNC?'510': r.es530?'530': r.iva===0?'507': r.baseExenta>0?'532': r.baseNoObje>0?'531': '500';
+        const mes    = (() => {
+          const f=r.FECHA_EMISION||'';
+          if(!f) return '';
+          const p=f.split('/');
+          if(p.length===3){ const m=parseInt(p[1]); return ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][m]||f; }
+          return f;
+        })();
         return [
-          String(r.RUC_EMISOR||''),               // A — RUC
-          r.RAZON_SOCIAL_EMISOR||'',              // B — Razón social
-          r.TIPO_COMPROBANTE||'Factura',          // C — Tipo
-          String(r.SERIE_COMPROBANTE||''),        // D — Serie
-          String(r.CLAVE_ACCESO||''),             // E — Clave
-          r.FECHA_AUTORIZACION||'',              // F — Fecha autorización
-          r.FECHA_EMISION||'',                   // G — Fecha emisión
-          String(r.IDENTIFICACION_RECEPTOR||''), // H — RUC receptor
-          codigo,                                // I — Código SRI (500/507/510/530/531/532)
-          r.baseExenta>0?r.baseExenta:null,      // J — Base exenta
-          r.baseNoObje>0?r.baseNoObje:null,      // K — No objeto IVA
-          r.base0>0?r.base0:null,                // L — Base 0%
-          r.iva>0?r.baseGravada:null,            // M — BASE 15% (gravada)
-          r.iva>0?r.iva:null,                    // N — IVA
-          r.total||null,                         // O — Total
-          r.propina>0?r.propina:null,            // P — Propina
-          r.tipoTarifa||'',                      // Q — Tarifa (15% / 8% / 0% / NC)
-          deducible||null,                       // R — Deducible (⚠ VALOR POR DEFECTO)
-          'Profesional',                         // S — Tipo de gasto (⚠ VALOR POR DEFECTO)
-          '',                                    // T — Observaciones
-          r.corregido?'✓ XML':'',               // U — Corregido
+          String(r.RUC_EMISOR||''),                // A
+          r.RAZON_SOCIAL_EMISOR||'',               // B
+          r.TIPO_COMPROBANTE||'Factura',            // C
+          String(r.SERIE_COMPROBANTE||''),          // D
+          String(r.CLAVE_ACCESO||''),               // E
+          r.FECHA_AUTORIZACION||'',                // F
+          r.FECHA_EMISION||'',                     // G
+          String(r.IDENTIFICACION_RECEPTOR||''),   // H
+          String(codigo),                           // I — Código SRI
+          r.baseExenta>0  ? r.baseExenta  : null,  // J
+          r.baseNoObje>0  ? r.baseNoObje  : null,  // K
+          r.base0>0       ? r.base0       : null,  // L
+          r.iva>0         ? r.baseGravada : null,  // M — BASE 15%
+          r.iva>0         ? r.iva         : null,  // N
+          r.total>0       ? r.total       : null,  // O
+          r.propina>0     ? r.propina     : null,  // P
+          r.tipoTarifa||'',                        // Q — tarifa
+          null,                                     // R — Deducible (fórmula)
+          'Profesional',                            // S — Tipo gasto ⚠
+          '',                                       // T — Observaciones
+          mes,                                      // U — Mes
+          r.corregido ? '✓ XML' : '',              // V — Corregido
         ];
       });
       ws.getRange(`A2:${colL(nCols)}${nRows+1}`).values = bloque;
       await ctx.sync();
 
-      // ── Fórmula BASE_GRAVADA si aplica (col M) ──
-      if(useFml){
-        const fmlaM = rows.map((r,i)=>{
-          if(r.corregido || r.es530) return [r.baseGravada>0 ? r.baseGravada : null];
-          return [r.iva>0 ? `=N${i+2}/0.15` : null];
-        });
-        ws.getRange(`M2:M${nRows+1}`).formulas = fmlaM;
-        // Deducible col R = M por defecto
-        const fmlaR = rows.map((r,i)=>{
-          if(r.iva>0) return [`=M${i+2}`];
-          if(r.base0>0) return [`=L${i+2}`];
-          return [null];
-        });
-        ws.getRange(`R2:R${nRows+1}`).formulas = fmlaR;
-        await ctx.sync();
-      }
-
-      // ── FORMATO CONTABILIDAD en columnas numéricas ──
-      ['J','K','L','M','N','O','P','R'].forEach(c=>{
-        ws.getRange(`${c}2:${c}${nRows+1}`).numberFormat = [[FMT_CONT]];
+      // ── FÓRMULAS en columnas M y R ──
+      const fmlaM = rows.map((r,i)=>{
+        const row = i+2;
+        if(r.corregido && r.baseGravada>0) return [r.baseGravada];       // XML exacto
+        if(r.es530 && r.baseGravada>0)     return [r.baseGravada];       // 8% exacto
+        if(r.iva>0) return [`=N${row}/0.15`];                             // fórmula visible
+        return [null];
       });
-      // Deducible y totales también
-      ws.getRange(`R2:R${nRows+1}`).numberFormat = [[FMT_CONT]];
+      ws.getRange(`M2:M${nRows+1}`).formulas = fmlaM;
 
-      // ── Nota en encabezado Deducible y Tipo de gasto ──
-      const celR1 = ws.getRange('R1');
-      celR1.format.fill.color = '#fef3c7';
-      celR1.format.font.color = '#92400e';
-      const celS1 = ws.getRange('S1');
-      celS1.format.fill.color = '#fef3c7';
-      celS1.format.font.color = '#92400e';
-      // Nota de valor por defecto en fila 1 col R y S
-      ws.getRange('R1').values = [['Deducible (⚠ def.)']];
-      ws.getRange('S1').values = [['Tipo de gasto (⚠ def.)']];
+      const fmlaR = rows.map((r,i)=>{
+        const row = i+2;
+        if(r.iva>0)   return [`=M${row}`];   // Deducible = base gravada
+        if(r.base0>0) return [`=L${row}`];   // Deducible = base 0%
+        if(r.baseExenta>0) return [`=J${row}`];
+        return [null];
+      });
+      ws.getRange(`R2:R${nRows+1}`).formulas = fmlaR;
+      await ctx.sync();
 
-      // ── Colorear filas ──
+      // ── FÓRMULA TOTAL (col O) como verificación ──
+      const fmlaO = rows.map((r,i)=>{
+        const row = i+2;
+        if(r.corregido) return [r.total];
+        // Total = M + N + L + J + K + P (propina no incluye IVA extra)
+        return [`=IFERROR(M${row},0)+IFERROR(N${row},0)+IFERROR(L${row},0)+IFERROR(J${row},0)+IFERROR(K${row},0)+IFERROR(P${row},0)`];
+      });
+      ws.getRange(`O2:O${nRows+1}`).formulas = fmlaO;
+      await ctx.sync();
+
+      // ── Formato CONTABILIDAD en columnas numéricas ──
+      ['J','K','L','M','N','O','P','R'].forEach(c=>{
+        ws.getRange(`${c}2:${c}${nRows+1}`).numberFormat = [[FMT]];
+      });
+
+      // ── COLORES de filas ──
       rows.forEach((r,i)=>{
-        const f = i+2;
-        if(r.corregido){
-          ws.getRange(`A${f}:${colL(nCols)}${f}`).format.fill.color = '#f0fdf4';
-        } else if(r.es530){
-          ws.getRange(`A${f}:${colL(nCols)}${f}`).format.fill.color = '#fffbeb';
-        } else if(r.esNC){
-          ws.getRange(`A${f}:${colL(nCols)}${f}`).format.fill.color = '#fef2f2';
-        } else if(r.alerta && r.alerta!=='sin datos' && r.alerta!=='propina/ICE: no declara en IVA'){
-          ws.getRange(`A${f}:${colL(nCols)}${f}`).format.fill.color = '#fffbeb';
-        }
+        const f=i+2;
+        const rng = ws.getRange(`A${f}:${colL(nCols)}${f}`);
+        if(r.corregido)   rng.format.fill.color='#f0fdf4';
+        else if(r.esNC)   rng.format.fill.color='#fef2f2';
+        else if(r.es530)  rng.format.fill.color='#fffbeb';
+        else if(r.alerta && r.alerta!=='sin datos' && r.alerta!=='propina/ICE: no declara en IVA')
+                          rng.format.fill.color='#fff3cd';
         // Código SRI en negrita
-        ws.getRange(`I${f}`).format.font.bold = true;
+        ws.getRange(`I${f}`).format.font.bold=true;
       });
 
-      // ── FILA DE TOTALES ──
+      // ── FILA TOTALES ──
       const tf = nRows+3;
-      ws.getRange(`B${tf}`).values = [['TOTALES']];
-      ws.getRange(`A${tf}:${colL(nCols)}${tf}`).format.fill.color = '#e8f4fd';
-      ws.getRange(`A${tf}:${colL(nCols)}${tf}`).format.font.bold  = true;
+      ws.getRange(`B${tf}`).values=[['TOTALES']];
+      const tRng = ws.getRange(`A${tf}:${colL(nCols)}${tf}`);
+      tRng.format.fill.color='#e8f4fd';
+      tRng.format.font.bold=true;
+      tRng.format.font.name='Segoe UI';
       ['J','K','L','M','N','O','P','R'].forEach(c=>{
-        ws.getRange(`${c}${tf}`).formulas = [[`=SUM(${c}2:${c}${nRows+1})`]];
-        ws.getRange(`${c}${tf}`).numberFormat = [[FMT_CONT]];
-        ws.getRange(`${c}${tf}`).format.font.color = '#0f1117';
+        ws.getRange(`${c}${tf}`).formulas=[[`=SUM(${c}2:${c}${nRows+1})`]];
+        ws.getRange(`${c}${tf}`).numberFormat=[[FMT]];
+        ws.getRange(`${c}${tf}`).format.font.bold=true;
       });
 
-      // ── Nota visible en la hoja ──
-      ws.getRange(`S${tf}`).values = [['⚠ Revisa columnas R y S — valores por defecto']];
-      ws.getRange(`S${tf}`).format.font.color = '#d97706';
-      ws.getRange(`S${tf}`).format.font.italic = true;
+      // ── Nota ⚠ valores por defecto ──
+      ws.getRange(`S${tf}`).values=[['⚠ Columnas R y S: valores por defecto — revisa y edita']];
+      ws.getRange(`S${tf}`).format.font.color='#d97706';
+      ws.getRange(`S${tf}`).format.font.italic=true;
 
-      // ── Widths y freeze ──
-      ws.getColumn('B').format.columnWidth = 28;  // Razón social
-      ws.getColumn('E').format.columnWidth = 50;  // Clave acceso
-      ws.getUsedRange().format.verticalAlignment = 'Center';
+      // ── Anchos ──
+      ws.getColumn(2).format.columnWidth=26;  // Razón social
+      ws.getColumn(5).format.columnWidth=48;  // Clave acceso
+      ws.getColumn(9).format.columnWidth=7;   // Código
+      ws.getUsedRange().format.verticalAlignment='Center';
       ws.freezePanes.freezeRows(1);
 
       await ctx.sync();
@@ -1973,9 +1984,10 @@ async function exportTXT(p,hoja){
   }catch(e){
     showProgress(false);
     showMsg('✗ '+(e.debugInfo?.message||e.message||String(e)),'error');
-    console.error('exportTXT:',e);
+    console.error('exportTXT error:',e);
   }
 }
+
 
 async function exportar104AExcel(){
   const a=archivos.find(x=>x.id===activoId);
@@ -2506,8 +2518,9 @@ function generarHTML104A(t, archivo, ventas={}) {
 // ══════════════════════════════════════════════════════════
 
 function clasificarFilaEmitida(r){
-  // TXT emitidos: FECHA_EMISION, COMPROBANTE, NUMERO_COMPROBANTE,
+  // TXT emitidos SRI Facturador: FECHA_EMISION, COMPROBANTE, NUMERO_COMPROBANTE,
   // IDENTIFICACION_RECEPTOR, RAZON_SOCIAL, CLAVE_ACCESO, VALOR_TOTAL
+  // Si tiene SUBTOTAL_SIN_IMPUESTOS e IVA (TXT expandido), úsalos directamente
   const total = parseFloat(r.VALOR_TOTAL||0)||0;
   const serie = r.NUMERO_COMPROBANTE||'';
   const clave = r.CLAVE_ACCESO||'';
