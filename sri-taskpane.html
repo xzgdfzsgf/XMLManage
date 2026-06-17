@@ -698,8 +698,13 @@ let archivosEmitidos = []; // TXT emitidos (ventas) — separado
 let activoEmitidosId = null;
 let xmlPool = {};       // clave: SERIE_COMPROBANTE → datos parseados del XML
 let officeOK = false;
+// RUC del contribuyente (Mauricio). Sirve para separar VENTAS (emisor=contribuyente)
+// de COMPRAS (comprador=contribuyente) al cargar XML. Se autodetecta.
+let RUC_CONTRIBUYENTE = '';
+function cargarRucContribuyente(){ try{ RUC_CONTRIBUYENTE = safeStore.getItem('heka_ruc_contribuyente')||''; }catch(e){} }
+function setRucContribuyente(ruc){ RUC_CONTRIBUYENTE=(ruc||'').trim(); try{ safeStore.setItem('heka_ruc_contribuyente',RUC_CONTRIBUYENTE); }catch(e){} }
 
-if (typeof Office !== 'undefined') Office.onReady(()=>{ officeOK=true; verificarPrimeraVez(); });
+if (typeof Office !== 'undefined') Office.onReady(()=>{ officeOK=true; cargarRucContribuyente(); verificarPrimeraVez(); });
 function isOfficeReady(){ return officeOK||(typeof Excel!=='undefined')||(typeof Office!=='undefined'&&!!Office.context); }
 
 // ══════════════════════════════════════════════════════════
@@ -861,39 +866,90 @@ function procesarArchivo(nombre, content, size) {
     try {
       const p = parsearXML(content);
       const serie = p.numeroComprobante;
+      const rucEmisor = (p.it?.ruc||'').trim();
+      const idComprador = (p.id?.idComp||'').trim();
+
+      // Autodetectar el RUC del contribuyente si aún no se conoce:
+      // si el emisor y el comprador difieren y uno se repite, ese es el contribuyente.
+      // Heurística simple: la primera vez, si comprador tiene 10-13 dígitos, asúmelo.
+      if(!RUC_CONTRIBUYENTE && idComprador && /^\d{10,13}$/.test(idComprador)){
+        // no fijar todavía; se confirma abajo por frecuencia
+      }
+
+      // ¿Es VENTA (emisor = contribuyente) o COMPRA (comprador = contribuyente)?
+      // Comparación flexible: el RUC del contribuyente puede venir como cédula (10) o RUC (13).
+      const normId = s => (s||'').replace(/\D/g,'').slice(0,10); // primeros 10 dígitos = cédula base
+      const esVenta = RUC_CONTRIBUYENTE
+        ? normId(rucEmisor) === normId(RUC_CONTRIBUYENTE)
+        : false;
+
+      p._esVenta = esVenta;
+      p._rucEmisor = rucEmisor;
+      p._idComprador = idComprador;
+
+      // Indexar en el pool correcto
       xmlPool[serie] = p;
       if(p.it?.claveAcceso) xmlPool[p.it.claveAcceso] = p;
 
-      // Corregir filas en TXT cargados
+      // Corregir filas en TXT cargados (solo con XML de COMPRA)
       let totalCorregidas = 0;
-      archivos.filter(a=>!a.esVirtual).forEach(a => {
-        if(a.parsed?.rowsClasif){
-          const n = aplicarXMLaFilas(a.parsed.rowsClasif, p, serie);
-          if(n > 0){ a.parsed.totales = calcularTotales(a.parsed.rowsClasif); totalCorregidas += n; }
-        }
-      });
+      if(!esVenta){
+        archivos.filter(a=>!a.esVirtual).forEach(a => {
+          if(a.parsed?.rowsClasif){
+            const n = aplicarXMLaFilas(a.parsed.rowsClasif, p, serie);
+            if(n > 0){ a.parsed.totales = calcularTotales(a.parsed.rowsClasif); totalCorregidas += n; }
+          }
+        });
+      }
 
       xmlCargados++;
       if(totalCorregidas > 0) xmlCorregidos++;
 
       clearTimeout(xmlTimer);
       xmlTimer = setTimeout(() => {
+        // Autodetección por frecuencia: el RUC que más aparece como comprador es el contribuyente
+        if(!RUC_CONTRIBUYENTE){
+          const freq = {};
+          Object.entries(xmlPool).forEach(([k,v])=>{
+            if(k!==v.numeroComprobante) return;
+            const idc = (v.id?.idComp||'').trim();
+            if(/^\d{10,13}$/.test(idc)) freq[idc]=(freq[idc]||0)+1;
+          });
+          const top = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0];
+          if(top){ setRucContribuyente(top[0]); }
+          // re-clasificar ventas/compras con el RUC ya detectado
+          const normId = s => (s||'').replace(/\D/g,'').slice(0,10);
+          Object.entries(xmlPool).forEach(([k,v])=>{
+            if(k!==v.numeroComprobante) return;
+            v._esVenta = normId(v._rucEmisor) === normId(RUC_CONTRIBUYENTE);
+          });
+        }
+
         const hayTXT = archivos.some(a=>!a.esVirtual);
+        const xmlsVenta  = Object.entries(xmlPool).filter(([k,v])=>k===v.numeroComprobante && v._esVenta && v.subtotales);
+        const xmlsCompra = Object.entries(xmlPool).filter(([k,v])=>k===v.numeroComprobante && !v._esVenta && v.subtotales);
+
+        // Construir VENTAS desde XML de ventas
+        if(xmlsVenta.length){
+          construirVentasDesdeXMLPool(xmlsVenta.map(([k,v])=>v));
+        }
 
         if(!hayTXT){
-          // Sin TXT: construir tabla desde los XMLs del pool
-          construirTablaDesdeXMLPool();
-          document.getElementById('xmlPoolCount').textContent =
-            `📥 ${xmlCargados} XML cargados como tabla`;
-          document.getElementById('xmlPoolCount').style.display = 'block';
-          showToast(`✅ ${xmlCargados} XML → tabla generada con datos exactos`, 'success');
+          // Sin TXT: construir tabla de COMPRAS desde los XML de compra
+          if(xmlsCompra.length) construirTablaDesdeXMLPool();
+          const cnt = document.getElementById('xmlPoolCount');
+          if(cnt){
+            cnt.textContent = `📥 ${xmlsCompra.length} compras · ${xmlsVenta.length} ventas (desde XML)`;
+            cnt.style.display = 'block';
+          }
+          showToast(`✅ XML: ${xmlsCompra.length} compras, ${xmlsVenta.length} ventas`, 'success');
         } else {
           const a = archivos.find(x=>x.id===activoId);
           if(a){ renderVista(a); actualizarBadgeFix(); renderFixPanel(); }
-          if(xmlCorregidos > 0)
-            showToast(`✅ ${xmlCorregidos} factura${xmlCorregidos>1?'s':''} corregida${xmlCorregidos>1?'s':''} de ${xmlCargados} XML`, 'success');
-          else
-            showToast(`${xmlCargados} XML procesados`, 'info');
+          let msg = `${xmlCargados} XML procesados`;
+          if(xmlsVenta.length) msg += ` · ${xmlsVenta.length} ventas`;
+          if(xmlCorregidos > 0) msg = `✅ ${xmlCorregidos} compras corregidas · ${xmlsVenta.length} ventas`;
+          showToast(msg, 'success');
         }
         xmlCargados = 0; xmlCorregidos = 0;
       }, 600);
@@ -974,9 +1030,9 @@ function procesarArchivo(nombre, content, size) {
 // CONSTRUIR TABLA DESDE XML POOL (sin TXT)
 // ══════════════════════════════════════════════════════════
 function construirTablaDesdeXMLPool(){
-  // Solo entradas indexadas por serie (evitar duplicados de clave)
+  // Solo entradas indexadas por serie que NO sean ventas (evitar duplicados de clave)
   const xmls = Object.entries(xmlPool)
-    .filter(([k, v]) => k === v.numeroComprobante && v.subtotales)
+    .filter(([k, v]) => k === v.numeroComprobante && v.subtotales && !v._esVenta)
     .map(([k, v]) => v);
 
   if(!xmls.length) return;
@@ -1045,6 +1101,61 @@ function construirTablaDesdeXMLPool(){
 
   activoId = archivoXMLVirtual.id;
   renderFileList(); renderVista(archivoXMLVirtual); actualizarBadgeFix(); goTab('vista');
+}
+
+// ══════════════════════════════════════════════════════════
+// CONSTRUIR VENTAS DESDE XML (emisor = contribuyente)
+// ══════════════════════════════════════════════════════════
+function construirVentasDesdeXMLPool(ventasXmls){
+  if(!ventasXmls || !ventasXmls.length) return;
+
+  // Convertir cada XML de venta en una fila clasificada de emitidos
+  const rowsEmit = ventasXmls.map(p => {
+    const s = p.subtotales || {};
+    const it = p.it || {};
+    const id = p.id || {};
+    return {
+      FECHA_EMISION:       id.fechaEmision || '',
+      NUMERO_COMPROBANTE:  p.numeroComprobante || '',
+      RAZON_SOCIAL:        id.rsComp || '',
+      IDENTIFICACION_RECEPTOR: id.idComp || '',
+      CLAVE_ACCESO:        it.claveAcceso || '',
+      VALOR_TOTAL:         s.total || 0,
+      // ya clasificado por codigoPorcentaje:
+      base15:    parseFloat((s.sub15||0).toFixed(2)),
+      base0:     parseFloat((s.sub0||0).toFixed(2)),
+      baseExenta:parseFloat((s.subExento||0).toFixed(2)),
+      baseNoObj: parseFloat((s.subNoObj||0).toFixed(2)),
+      iva:       parseFloat((s.iva15||0).toFixed(2)),
+      propina:   parseFloat((s.propina||0).toFixed(2)),
+      ice:       parseFloat((s.ice||0).toFixed(2)),
+      total:     parseFloat((s.total||0).toFixed(2)),
+      tieneXML:  true,
+      serie:     p.numeroComprobante || '',
+      clave:     it.claveAcceso || '',
+      alerta:    '',
+    };
+  });
+
+  const te = calcularTotalesEmitidos(rowsEmit);
+
+  // Crear/actualizar el archivo de emitidos principal
+  archivosEmitidos = archivosEmitidos.filter(x=>!x.esEmitidosPrincipal);
+  const aV = {
+    id: 'ventas-xml-'+Date.now(),
+    nombre: `${rowsEmit.length} ventas (desde XML)`,
+    content: '', error: null, tipo: 'txt', size: 0,
+    esEmitidosPrincipal: true,
+    parsed: {
+      tipo:'emitidos', esEmitidos:true, esPortalSRI:false,
+      headers:[], rows:rowsEmit, rowsEmitidos:rowsEmit,
+      nFilas:rowsEmit.length, totalesEmitidos:te, delim:'', fuenteXML:true,
+    },
+  };
+  archivosEmitidos.push(aV);
+  activoEmitidosId = aV.id;
+  actualizarTotales104AEmitidos(te);
+  try{ renderEmitidos(); renderFileListEmitidos(); }catch(e){}
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2072,317 +2183,204 @@ async function exportTXT(p,hoja){
 
 
 async function exportar104AExcel(){
-  const a = archivos.find(x=>x.id===activoId);
-  if(!a?.parsed?.totales){ alert('Carga un TXT primero'); return; }
-  if(!isOfficeReady()){ showMsg('⚠ Office no listo','error'); return; }
-
-  const t  = a.parsed.totales;
-  const p  = a.parsed;
-
-  // Ventas — desde emitidos o manual
+  // Permite generar el 104A aunque solo haya compras, solo ventas, o ambas.
+  const a = archivos.find(x=>x.id===activoId) || archivos.find(x=>x.parsed?.totales);
   const aEmit = archivosEmitidos.find(x=>x.esEmitidosPrincipal);
-  const ventasKey = 'heka_ventas_'+(extraerMesKey(p,a.nombre)||'sin_mes');
+  if(!a?.parsed?.totales && !aEmit?.parsed?.totalesEmitidos){
+    showMsg('Carga primero las compras (TXT/XML) o las ventas emitidas','error'); return;
+  }
+  if(!isOfficeReady()){ showMsg('Office no está listo. Espera unos segundos y reintenta.','error'); return; }
+
+  const t  = a?.parsed?.totales || {};
+  const p  = a?.parsed || {};
+
+  // ── VENTAS: 1) emitidos cargados  2) XML de ventas en el pool  3) manual guardado ──
+  const ventasKey = 'heka_ventas_'+(extraerMesKey(p,a?.nombre||'')||'sin_mes');
   let v = {};
   try{ v = JSON.parse(safeStore.getItem(ventasKey)||'{}'); }catch(e){}
   if(aEmit?.parsed?.totalesEmitidos){
     const te = aEmit.parsed.totalesEmitidos;
-    if(te.c401>0) v.v401=te.c401;
-    if(te.c402>0) v.v402=te.c402;
-    if(te.c405>0) v.v405=te.c405;
-    if(te.c411>0) v.v411=te.c411;
+    v.v401=te.c401||0; v.v402=te.c402||0; v.v405=te.c405||0; v.v411=te.c411||0;
   }
 
-  // ── Valores de casilleros del 104A ──
-  // VENTAS
-  const c401 = v.v401||0;                         // base gravada > 0%
-  const c402 = v.v402||0;                         // IVA cobrado en ventas
-  const c405 = v.v405||0;                         // ventas 0% con derecho a CT
-  const c411 = v.v411||0;                         // no objeto + exentas
-  const c419 = +( c401 + c405 + c411 ).toFixed(2); // total ventas (base)
-  const c429 = c402;                               // impuesto generado en ventas
+  // ── Valores de casilleros ──
+  const c401 = +(v.v401||0).toFixed ? +(v.v401||0) : 0;
+  const _n = x => +(parseFloat(x)||0);
+  const c401v = _n(v.v401), c402v = _n(v.v402), c405v = _n(v.v405), c411v = _n(v.v411);
+  const c419 = +(c401v + c405v + c411v).toFixed(2);
+  const c429 = c402v;
 
-  // COMPRAS (de los XML/TXT clasificados)
-  const c500 = +((t.c500||0)-(t.totalBase530||0)).toFixed(2); // base 15% (excl. tramo 8% informativo)
-  const c520 = +((t.c520||t.c501||0)-(t.totalIVA530||0)).toFixed(2); // IVA 15%
-  const c530 = +(t.totalBase530||0).toFixed(2);   // base 8% (informativo)
-  const c522 = +(t.totalIVA530||0).toFixed(2);    // IVA 8%
-  const c507 = +(t.c507||0).toFixed(2);           // adquisiciones tarifa 0%
-  const c531 = +(t.c531||0).toFixed(2);           // no objeto
-  const c532 = +(t.c532||0).toFixed(2);           // exentas
-  const ivaComprasTotal = +(c520 + c522).toFixed(2);
+  const c500 = +((t.c500||0)-(t.totalBase530||0)).toFixed(2);
+  const c520 = +((t.c520||t.c501||0)-(t.totalIVA530||0)).toFixed(2);
+  const c530 = +(t.totalBase530||0).toFixed(2);
+  const c522 = +(t.totalIVA530||0).toFixed(2);
+  const c507 = +(t.c507||0).toFixed(2);
+  const c531 = +(t.c531||0).toFixed(2);
+  const c532 = +(t.c532||0).toFixed(2);
+  const ivaCompras = +(c520 + c522).toFixed(2);
 
-  // Factor de proporcionalidad (563): si hay ventas exentas/no-objeto, el crédito
-  // tributario se prorratea. (411+412+415+416)/419 en el formulario.
-  // Aquí: crédito pleno cuando todas las ventas dan derecho (caso usual del estudio).
-  const ventasConDerecho = +(c401 + c405).toFixed(2);
+  const ventasConDerecho = +(c401v + c405v).toFixed(2);
   const c563 = c419>0 ? +(ventasConDerecho / c419).toFixed(4) : 1;
-  const c564 = +(ivaComprasTotal * c563).toFixed(2); // crédito aplicable este período
 
-  // LIQUIDACIÓN
-  const c605 = v.v605||0;                         // saldo CT mes anterior
-  const c609 = +(t.c609||0).toFixed(2);           // retenciones de IVA recibidas
-  const c601 = c564;                              // crédito tributario aplicable
-  const ivaVentas = c402;
-  const subtotal = +(ivaVentas - c601 - c605 - c609).toFixed(2);
-  const c699 = subtotal>0 ? subtotal : 0;          // impuesto a pagar
-  const c615 = subtotal<0 ? +Math.abs(subtotal).toFixed(2) : 0; // saldo CT próximo mes
+  const c605 = _n(v.v605);
+  const c609 = +(t.c609||0).toFixed(2);
+  const mesAnio = extraerMesKey(p,a?.nombre||'')||'';
+  const FMT  = '#,##0.00';
 
-  const FMT  = '_("$"* #,##0.00_);_("$"* (#,##0.00);_("$"* "-"??_);_(@_)';
-  const FMTC = '@';  // texto
-  const mesAnio = extraerMesKey(p,a.nombre)||'';
+  // Origen de cada bloque (para la columna FUENTE)
+  const ventasSrc = aEmit ? 'auto (emitidos)' : (c401v||c402v||c405v||c411v ? 'XML / manual' : 'manual (vacío)');
+  const compSrc   = p.fuenteXML ? 'XML exacto' : (a?.parsed ? 'TXT estimado' : 'sin compras');
 
   showProgress(true);
   try{
     await Excel.run(async ctx=>{
       const sheets=ctx.workbook.worksheets;
       sheets.load('items/name'); await ctx.sync();
-      let ws;
-      const HOJA = '104A';
-      const existe=sheets.items.find(s=>s.name===HOJA);
-      if(existe){
-        ws=existe;
-        try{ const ur=ws.getUsedRangeOrNullObject(); ur.load('address'); await ctx.sync(); if(!ur.isNullObject) ur.clear(); }
-        catch(_){ try{ ws.getRange('A1:Z200').clear(); }catch(__){} }
+      const HOJA='104A';
+      let ws=sheets.items.find(s=>s.name===HOJA);
+      if(ws){
+        try{ ws.getRange('A1:F200').clear(); }catch(e){}
         await ctx.sync();
-      } else { ws=sheets.add(HOJA); }
+      } else {
+        ws=sheets.add(HOJA);
+        await ctx.sync();
+      }
       ws.activate(); await ctx.sync();
 
-      // ──────────────────────────────────────────────
-      // LAYOUT — replica el formulario 104A del SRI
-      // Columna A: descripción | C: casillero | D: valor
-      // ──────────────────────────────────────────────
+      // ── Construir TODO el contenido en memoria (matriz), luego escribir en bloque ──
+      // Columnas: A=Casillero  B=Descripción  C=(vacío)  D=Valor  E=Fórmula?  F=Fuente
+      // Para soportar fórmulas usamos dos pasadas: valores y luego fórmulas puntuales.
+      const rows = [];      // cada fila: [cas, desc, '', valorOFormula, fuente]
+      const formulaRows = {}; // idx -> formula string para columna D
+      const styleRows = {}; // idx -> tipo de estilo
 
-      // Helper: set a row
-      const R = (row, desc, cas, val, nota) => {
-        if(desc !== null) ws.getRange(`A${row}`).values=[[desc]];
-        if(cas  !== null) ws.getRange(`C${row}`).values=[[cas]];
-        if(val  !== null) ws.getRange(`D${row}`).values=[[val]];
-        if(nota !== null) ws.getRange(`E${row}`).values=[[nota]];
+      const push = (cas, desc, val, fuente, opts={}) => {
+        const idx = rows.length;
+        rows.push([cas, desc, '', (val===null?'':val), (fuente||'')]);
+        if(opts.formula) formulaRows[idx]=opts.formula;
+        if(opts.style) styleRows[idx]=opts.style;
+        return idx;
       };
 
-      // ── Título ──
-      ws.getRange('A1').values=[['FORMULARIO 104A — DECLARACIÓN DEL IMPUESTO AL VALOR AGREGADO']];
-      ws.getRange('A1:E1').merge(true);
-      ws.getRange('A1').format.fill.color='#0f1117';
-      ws.getRange('A1').format.font.color='#ffffff';
-      ws.getRange('A1').format.font.bold=true;
-      ws.getRange('A1').format.font.size=12;
-      ws.getRange('A1').format.rowHeight=28;
+      // Título y cabecera (filas 0..4 en la matriz → filas 1..5 en Excel)
+      push('', 'FORMULARIO 104A — DECLARACIÓN DEL IMPUESTO AL VALOR AGREGADO', null, '', {style:'titulo'});
+      push('', 'Persona natural no obligada a llevar contabilidad', null, '', {style:'sub'});
+      push('', 'Período: '+mesAnio, null, (a?.nombre||''), {style:'ident'});
+      push('', '', null, '');
+      push('CAS.', 'DESCRIPCIÓN', 'VALOR', 'FUENTE', {style:'hdr'});
 
-      ws.getRange('A2').values=[['PERSONA NATURAL NO OBLIGADA A LLEVAR CONTABILIDAD']];
-      ws.getRange('A2:E2').merge(true);
-      ws.getRange('A2').format.font.italic=true;
-      ws.getRange('A2').format.font.color='#6b7280';
-      ws.getRange('A2').format.font.size=9;
+      // VENTAS
+      push('', 'RESUMEN DE VENTAS Y OTRAS OPERACIONES', null, '', {style:'sec'});
+      const iv401 = push('401','Ventas locales (excluye AF) gravadas tarifa diferente de 0% — base', c401v, ventasSrc);
+      const iv405 = push('405','Ventas locales gravadas tarifa 0% (con derecho a CT)', c405v, ventasSrc);
+      const iv411 = push('411','Transferencias no objeto o exentas de IVA', c411v, ventasSrc);
+      const iv419 = push('419','TOTAL VENTAS Y OTRAS OPERACIONES', null, '', {style:'tot'});
+      const iv429 = push('429','IMPUESTO GENERADO (IVA cobrado en ventas)', c429, ventasSrc, {style:'totRojo'});
 
-      // ── Identificación ──
-      ws.getRange('A3').values=[['Período: '+mesAnio]];
-      ws.getRange('C3').values=[['Archivo:']];
-      ws.getRange('D3').values=[[a.nombre]];
-      ws.getRange('A3').format.font.bold=true;
+      // COMPRAS
+      push('', 'RESUMEN DE ADQUISICIONES Y PAGOS', null, '', {style:'sec'});
+      const ic500 = push('500','Adquisiciones y pagos gravados tarifa diferente de 0% (con CT) — base', c500, compSrc);
+      push('501','Adquisiciones locales de activos fijos gravados (con CT) — base', 0, '');
+      const ic507 = push('507','Adquisiciones y pagos gravados tarifa 0%', c507, compSrc);
+      const ic531 = push('531','Adquisiciones no objeto de IVA', c531, compSrc);
+      const ic532 = push('532','Adquisiciones exentas de IVA', c532, compSrc);
+      const ic509 = push('509','TOTAL ADQUISICIONES Y PAGOS', null, '', {style:'tot'});
+      const ic520 = push('520','IVA pagado en adquisiciones (tarifa diferente de 0%)', c520, compSrc, {style:'totVerde'});
 
+      // CRÉDITO
+      push('', 'CRÉDITO TRIBUTARIO', null, '', {style:'sec'});
+      const ic563 = push('563','Factor de proporcionalidad  (401+405)/419', c563, 'calculado', {style:'factor'});
+      const ic564 = push('564','CRÉDITO TRIBUTARIO APLICABLE EN ESTE PERÍODO  (520 × 563)', null, '', {style:'totVerde'});
+
+      // LIQUIDACIÓN
+      push('', 'RESUMEN IMPOSITIVO — LIQUIDACIÓN', null, '', {style:'sec'});
+      const il499 = push('499','IVA cobrado en ventas (trasladado del 429)', null, ventasSrc);
+      const il564 = push('564','(−) Crédito tributario aplicable en este período', null, '');
+      const il605 = push('605','(−) Saldo crédito tributario del mes anterior (615 del mes pasado)', c605, 'manual', {style:'manual'});
+      const il609 = push('609','(−) Retenciones de IVA que le efectuaron en este período', c609, '');
+      const il601 = push('601','IMPUESTO CAUSADO  (si 499 − 564 − 605 − 609 > 0)', null, '', {style:'totRojo'});
+      const il615 = push('615','SALDO CRÉDITO TRIBUTARIO PRÓXIMO MES (trasladar al 605)', null, '', {style:'totVerde'});
+
+      // TOTAL A PAGAR
+      const ip699 = push('699','TOTAL IMPUESTO A PAGAR (trasladar al SRI en línea)', null, '', {style:'pagar'});
+
+      // INFORMATIVO
+      push('', 'INFORMACIÓN COMPLEMENTARIA (no se declara en casilleros de IVA)', null, '', {style:'sec'});
+      push('—','Propina acumulada en compras (no es base imponible)', +(t.totalPropina||0).toFixed(2), '', {style:'gris'});
+      push('—','ICE en compras (ej. DIRECTV; no es base imponible de IVA)', +(t.totalICE||0).toFixed(2), '', {style:'gris'});
+      push('—','Tramo informativo tarifa 8% — base $'+c530.toFixed(2)+' (ya incluido en 500)', c522, '', {style:'gris'});
+
+      // Fórmulas (referencias a filas Excel = idx+1)
+      const XL = i => i+1;
+      formulaRows[iv419] = `=D${XL(iv401)}+D${XL(iv405)}+D${XL(iv411)}`;
+      formulaRows[ic509] = `=D${XL(ic500)}+D${XL(ic507)}+D${XL(ic531)}+D${XL(ic532)}`;
+      formulaRows[ic564] = `=ROUND(D${XL(ic520)}*D${XL(ic563)},2)`;
+      formulaRows[il499] = `=D${XL(iv429)}`;
+      formulaRows[il564] = `=D${XL(ic564)}`;
+      formulaRows[il601] = `=MAX(D${XL(il499)}-D${XL(il564)}-D${XL(il605)}-D${XL(il609)},0)`;
+      formulaRows[il615] = `=MAX(D${XL(il564)}+D${XL(il605)}+D${XL(il609)}-D${XL(il499)},0)`;
+      formulaRows[ip699] = `=D${XL(il601)}`;
+
+      // ── Escritura en BLOQUE (1 sola operación) ──
+      const nRows = rows.length;
+      const rng = ws.getRangeByIndexes(0,0,nRows,5);
+      rng.values = rows;
       await ctx.sync();
 
-      // ── Cabecera de tabla ──
-      const hdrRow = 5;
-      ws.getRange(`A${hdrRow}:E${hdrRow}`).values=[['DESCRIPCIÓN','','CAS.','VALOR ($)','FUENTE']];
-      ws.getRange(`A${hdrRow}:E${hdrRow}`).format.fill.color='#1e3a5f';
-      ws.getRange(`A${hdrRow}:E${hdrRow}`).format.font.color='#ffffff';
-      ws.getRange(`A${hdrRow}:E${hdrRow}`).format.font.bold=true;
-      ws.getRange(`A${hdrRow}:E${hdrRow}`).format.font.size=9;
+      // ── Fórmulas (columna D) ──
+      Object.keys(formulaRows).forEach(idx=>{
+        ws.getRangeByIndexes(+idx,3,1,1).formulas=[[formulaRows[idx]]];
+      });
+      await ctx.sync();
 
-      // ── SECCIÓN VENTAS ──
-      let r = hdrRow+1;
-      ws.getRange(`A${r}:E${r}`).values=[['RESUMEN DE VENTAS Y OTRAS OPERACIONES','','','','']];
-      ws.getRange(`A${r}:E${r}`).format.fill.color='#e8f4fd';
-      ws.getRange(`A${r}`).format.font.bold=true;
-      ws.getRange(`A${r}`).format.font.color='#0f1117';
+      // ── Formato base ──
+      const used = ws.getUsedRange();
+      used.format.font.name='Calibri';
+      used.format.font.size=11;
+      used.format.autofitColumns?.();
+      // Anchos fijos (autofit puede no existir en algunas versiones)
+      ws.getRangeByIndexes(0,0,1,1).format.columnWidth=55;   // A
+      ws.getRangeByIndexes(0,1,1,1).format.columnWidth=360;  // B
+      ws.getRangeByIndexes(0,3,1,1).format.columnWidth=110;  // D
+      ws.getRangeByIndexes(0,4,1,1).format.columnWidth=130;  // F
+      // Formato numérico en D para todas las filas de datos
+      ws.getRangeByIndexes(5,3,nRows-5,1).numberFormat=[['#,##0.00']];
+      await ctx.sync();
 
-      const ventasSrc = aEmit ? '✓ auto (emitidos)' : (c401||c402||c405||c411 ? '✓ XML/manual' : '⚠ manual');
-      r++;
-      R(r,'Ventas locales (excluye AF) gravadas tarifa diferente de cero — BASE','401',c401,ventasSrc);
-      r++;
-      R(r,'Ventas locales (excluye AF) gravadas tarifa 0% con derecho a CT','405',c405,ventasSrc);
-      r++;
-      R(r,'Transferencias no objeto o exentas de IVA','411',c411,ventasSrc);
-      r++;
-      R(r,'TOTAL VENTAS Y OTRAS OPERACIONES','419',null,'');
-      ws.getRange(`D${r}`).formulas=[[`=D${r-3}+D${r-2}+D${r-1}`]];
-      ws.getRange(`A${r}`).format.font.bold=true;
-      ws.getRange(`D${r}`).format.font.bold=true;
-      const rowVentasTot = r;
-      r++;
-      R(r,'IMPUESTO GENERADO EN VENTAS (IVA cobrado)','429',c429,ventasSrc);
-      ws.getRange(`A${r}`).format.font.bold=true;
-      ws.getRange(`D${r}`).format.font.bold=true;
-      const row429 = r;
+      // ── Estilos por fila ──
+      const setFill=(i,color)=>{ try{ ws.getRangeByIndexes(i,0,1,5).format.fill.color=color; }catch(e){} };
+      const setFont=(i,opts)=>{ try{ const f=ws.getRangeByIndexes(i,0,1,5).format.font; if(opts.bold!=null)f.bold=opts.bold; if(opts.color)f.color=opts.color; if(opts.italic!=null)f.italic=opts.italic; if(opts.size)f.size=opts.size; }catch(e){} };
+      const setValFont=(i,opts)=>{ try{ const f=ws.getRangeByIndexes(i,3,1,1).format.font; if(opts.bold!=null)f.bold=opts.bold; if(opts.color)f.color=opts.color; if(opts.size)f.size=opts.size; }catch(e){} };
 
-      // ── SECCIÓN ADQUISICIONES ──
-      r+=2;
-      const adqRow = r;
-      ws.getRange(`A${r}:E${r}`).values=[['RESUMEN DE ADQUISICIONES Y PAGOS','','','','']];
-      ws.getRange(`A${r}:E${r}`).format.fill.color='#f0fdf4';
-      ws.getRange(`A${r}`).format.font.bold=true;
+      Object.keys(styleRows).forEach(k=>{
+        const i=+k, s=styleRows[k];
+        if(s==='titulo'){ setFill(i,'#0F1117'); setFont(i,{bold:true,color:'#FFFFFF',size:13}); }
+        else if(s==='sub'){ setFont(i,{italic:true,color:'#6B7280',size:9}); }
+        else if(s==='ident'){ setFont(i,{bold:true}); }
+        else if(s==='hdr'){ setFill(i,'#1E3A5F'); setFont(i,{bold:true,color:'#FFFFFF',size:9}); }
+        else if(s==='sec'){ setFill(i,'#E8F4FD'); setFont(i,{bold:true,color:'#0F1117'}); }
+        else if(s==='tot'){ setFont(i,{bold:true}); }
+        else if(s==='totRojo'){ setFont(i,{bold:true}); setValFont(i,{bold:true,color:'#DC2626'}); }
+        else if(s==='totVerde'){ setFont(i,{bold:true}); setValFont(i,{bold:true,color:'#15803D'}); }
+        else if(s==='factor'){ try{ ws.getRangeByIndexes(i,3,1,1).numberFormat=[['0.0000']]; }catch(e){} }
+        else if(s==='manual'){ setFill(i,'#FFFBEB'); }
+        else if(s==='gris'){ setFont(i,{color:'#6B7280',size:9}); }
+        else if(s==='pagar'){ setFill(i,'#0F1117'); setFont(i,{bold:true,color:'#FFFFFF',size:13}); setValFont(i,{bold:true,color:'#FFFFFF',size:13}); }
+      });
+      await ctx.sync();
 
-      const compSrc = (p.fuenteXML ? '✓ XML exacto' : '≈ TXT estimado');
-      r++;
-      R(r,'Adquisiciones y pagos gravados tarifa diferente de cero (con CT) — BASE','500',c500,compSrc);
-      r++;
-      R(r,'Adquisiciones locales de activos fijos gravados (CT) — BASE','501',0,'');
-      r++;
-      if(c530>0){
-        R(r,'Adquisiciones gravadas tarifa 8% — BASE (informativo, incluido en 500)','530',c530,compSrc);
-        r++;
-      }
-      R(r,'Adquisiciones y pagos tarifa 0%','507',c507,compSrc);
-      r++;
-      R(r,'Adquisiciones NO objeto de IVA','531',c531,compSrc);
-      r++;
-      R(r,'Adquisiciones exentas de IVA','532',c532,compSrc);
-      r++;
-      R(r,'TOTAL ADQUISICIONES Y PAGOS','509',null,'');
-      ws.getRange(`D${r}`).formulas=[[`=D${r-3}+D${r-2}+D${r-1}+D${r-4}`]];
-      ws.getRange(`A${r}`).format.font.bold=true;
-      ws.getRange(`D${r}`).format.font.bold=true;
-      const row509 = r;
-
-      // IVA pagado
-      r++;
-      R(r,'IVA pagado en adquisiciones (tarifa diferente de cero)','520',c520,compSrc);
-      const row520 = r;
-      if(c530>0){
-        r++;
-        R(r,'IVA pagado tarifa 8% (informativo, incluido en 520)','522',c522,compSrc);
-      }
-      r++;
-      R(r,'TOTAL IVA EN ADQUISICIONES','—',null,'');
-      ws.getRange(`D${r}`).formulas=[[`=D${row520}`]];
-      ws.getRange(`A${r}`).format.font.bold=true;
-      ws.getRange(`D${r}`).format.font.bold=true;
-      const rowIvaComp = r;
-
-      // Factor de proporcionalidad
-      r++;
-      R(r,'Factor de proporcionalidad del crédito tributario  (411+415)/419','563',c563,'calculado');
-      ws.getRange(`D${r}`).numberFormat=[['0.0000']];
-      const row563 = r;
-      r++;
-      R(r,'CRÉDITO TRIBUTARIO APLICABLE EN ESTE PERÍODO  (520 × 563)','564',null,'');
-      ws.getRange(`D${r}`).formulas=[[`=ROUND(D${rowIvaComp}*D${row563},2)`]];
-      ws.getRange(`A${r}`).format.font.bold=true;
-      ws.getRange(`D${r}`).format.font.bold=true;
-      const row564 = r;
-
-      // ── SECCIÓN LIQUIDACIÓN ──
-      r+=2;
-      ws.getRange(`A${r}:E${r}`).values=[['RESUMEN IMPOSITIVO — LIQUIDACIÓN','','','','']];
-      ws.getRange(`A${r}:E${r}`).format.fill.color='#fff3cd';
-      ws.getRange(`A${r}`).format.font.bold=true;
-
-      r++;
-      R(r,'IMPUESTO CAUSADO / IVA cobrado en ventas (trasladado del 429)','499',null,ventasSrc);
-      ws.getRange(`D${r}`).formulas=[[`=D${row429}`]];
-      const row499 = r;
-
-      r++;
-      R(r,'(-) Crédito tributario aplicable en este período','564 →',null,'');
-      ws.getRange(`D${r}`).formulas=[[`=D${row564}`]];
-      const row564ref = r;
-
-      r++;
-      R(r,'(-) Saldo crédito tributario mes anterior (del 615 del mes pasado)','605',c605,'⚠ manual');
-      ws.getRange(`A${r}`).format.fill.color='#fffbeb';
-      const row605 = r;
-
-      r++;
-      R(r,'(-) Retenciones de IVA que le efectuaron en este período','609',c609,'');
-      const row609 = r;
-
-      r++;
-      R(r,'IMPUESTO CAUSADO (si 499 - 564 - 605 - 609 > 0)','601',null,'');
-      ws.getRange(`D${r}`).formulas=[[`=MAX(D${row499}-D${row564ref}-D${row605}-D${row609},0)`]];
-      ws.getRange(`A${r}`).format.fill.color='#fef2f2';
-      ws.getRange(`D${r}`).format.font.bold=true;
-      ws.getRange(`D${r}`).format.font.color='#dc2626';
-      const row601 = r;
-
-      r++;
-      R(r,'SALDO A FAVOR (para el próximo mes) — trasladar al 605','615',null,'');
-      ws.getRange(`D${r}`).formulas=[[`=MAX(D${row564ref}+D${row605}+D${row609}-D${row499},0)`]];
-      ws.getRange(`A${r}`).format.fill.color='#f0fdf4';
-      ws.getRange(`D${r}`).format.font.bold=true;
-      ws.getRange(`D${r}`).format.font.color='#15803d';
-      const row615 = r;
-
-      r++;
-      R(r,'TOTAL IMPUESTO A PAGAR (trasladar al SRI)','699',null,'');
-      ws.getRange(`D${r}`).formulas=[[`=D${row601}`]];
-      ws.getRange(`A${r}:E${r}`).format.fill.color='#0f1117';
-      ws.getRange(`A${r}:E${r}`).format.font.color='#ffffff';
-      ws.getRange(`A${r}`).format.font.bold=true;
-      ws.getRange(`D${r}`).format.font.bold=true;
-      ws.getRange(`D${r}`).format.font.size=13;
-
-      // ── NOTA PROPINA ──
-      r+=2;
-      ws.getRange(`A${r}`).values=[['INFORMACIÓN COMPLEMENTARIA (no declara en IVA)']];
-      ws.getRange(`A${r}`).format.font.bold=true;
-      ws.getRange(`A${r}`).format.font.color='#6b7280';
-      ws.getRange(`A${r}`).format.font.size=8;
-      r++;
-      R(r,'Propina acumulada (DS 1269 — no es base imponible)','—',t.totalPropina||0,'');
-      ws.getRange(`A${r}`).format.font.color='#6b7280';
-      ws.getRange(`D${r}`).format.font.color='#6b7280';
-
-      // ── Aplicar formato a toda la tabla ──
-      const dataStart = hdrRow+1;
-      const dataEnd   = r;
-      // Formato contabilidad en col D
-      ws.getRange(`D${dataStart}:D${dataEnd}`).numberFormat=[[FMT]];
-      // Bordes en tabla
-      const tableRng = ws.getRange(`A${hdrRow}:E${dataEnd}`);
-      tableRng.format.borders.getItem('InsideHorizontal').style='Continuous';
-      tableRng.format.borders.getItem('InsideHorizontal').color='#e5e7eb';
-      tableRng.format.borders.getItem('InsideHorizontal').weight='Thin';
-      tableRng.format.borders.getItem('EdgeLeft').style='Continuous';
-      tableRng.format.borders.getItem('EdgeLeft').color='#0f1117';
-      tableRng.format.borders.getItem('EdgeRight').style='Continuous';
-      tableRng.format.borders.getItem('EdgeRight').color='#0f1117';
-      tableRng.format.borders.getItem('EdgeBottom').style='Continuous';
-      tableRng.format.borders.getItem('EdgeBottom').color='#0f1117';
-
-      // Col C (casillero) — negrita centrada
-      ws.getRange(`C${dataStart}:C${dataEnd}`).format.font.bold=true;
-      ws.getRange(`C${dataStart}:C${dataEnd}`).format.horizontalAlignment='Center';
-      ws.getRange(`C${dataStart}:C${dataEnd}`).format.fill.color='#f8faff';
-
-      // Fuente (col E) — pequeña y gris
-      ws.getRange(`E${dataStart}:E${dataEnd}`).format.font.size=8;
-      ws.getRange(`E${dataStart}:E${dataEnd}`).format.font.italic=true;
-      ws.getRange(`E${dataStart}:E${dataEnd}`).format.font.color='#9ca3af';
-
-      // Col A ancho grande
-      ws.getColumn(1).format.columnWidth=55;
-      ws.getColumn(3).format.columnWidth=8;
-      ws.getColumn(4).format.columnWidth=16;
-      ws.getColumn(5).format.columnWidth=20;
-
-      // Fuente global
-      ws.getUsedRange().format.font.name='Segoe UI';
-      ws.getUsedRange().format.font.size=10;
-      ws.getUsedRange().format.verticalAlignment='Center';
-      ws.getUsedRange().format.rowHeight=20;
-
-      ws.freezePanes.freezeRows(hdrRow);
+      try{ ws.freezePanes.freezeRows(5); }catch(e){}
+      try{ ws.gridlines=false; }catch(e){}
       await ctx.sync();
 
       showProgress(false);
-      showMsg('✓ Formulario 104A exportado → hoja "104A"','success');
+      showMsg('✓ Hoja "104A" generada — impuesto a pagar en casillero 699','success');
     });
   }catch(e){
     showProgress(false);
-    showMsg('✗ '+(e.debugInfo?.message||e.message||String(e)),'error');
-    console.error('104A export:',e);
+    const msg = e?.debugInfo?.message || e?.message || String(e);
+    showMsg('✗ Error generando 104A: '+msg,'error');
+    console.error('104A export:',e, e?.debugInfo);
   }
 }
 
