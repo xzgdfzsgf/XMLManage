@@ -703,6 +703,46 @@ if (typeof Office !== 'undefined') Office.onReady(()=>{ officeOK=true; verificar
 function isOfficeReady(){ return officeOK||(typeof Excel!=='undefined')||(typeof Office!=='undefined'&&!!Office.context); }
 
 // ══════════════════════════════════════════════════════════
+// ALMACENAMIENTO SEGURO
+// localStorage NO es confiable dentro del complemento de Office (webview aislado).
+// Usamos Office.context.document.settings cuando existe, con respaldo en memoria.
+// API idéntica a localStorage: getItem / setItem / removeItem.
+// ══════════════════════════════════════════════════════════
+const memStore = {};
+const safeStore = {
+  getItem(k){
+    try{
+      if(typeof Office!=='undefined' && Office.context?.document?.settings){
+        const v = Office.context.document.settings.get(k);
+        if(v!=null) return v;
+      }
+    }catch(e){}
+    if(k in memStore) return memStore[k];
+    try{ return window.safeStore.getItem(k); }catch(e){ return null; }
+  },
+  setItem(k,v){
+    memStore[k]=v;
+    try{
+      if(typeof Office!=='undefined' && Office.context?.document?.settings){
+        Office.context.document.settings.set(k,v);
+        Office.context.document.settings.saveAsync(()=>{});
+      }
+    }catch(e){}
+    try{ window.safeStore.setItem(k,v); }catch(e){}
+  },
+  removeItem(k){
+    delete memStore[k];
+    try{
+      if(typeof Office!=='undefined' && Office.context?.document?.settings){
+        Office.context.document.settings.remove(k);
+        Office.context.document.settings.saveAsync(()=>{});
+      }
+    }catch(e){}
+    try{ window.safeStore.removeItem(k); }catch(e){}
+  }
+};
+
+// ══════════════════════════════════════════════════════════
 // TABS
 // ══════════════════════════════════════════════════════════
 function goTab(t) {
@@ -945,7 +985,7 @@ function construirTablaDesdeXMLPool(){
     const s = p.subtotales;
     const it = p.it || {};
     const id = p.id || {};
-    const totalCalc = parseFloat(((s.sub15||0)+(s.sub0||0)+(s.subExento||0)+(s.subNoObj||0)+(s.iva15||0)+(s.propina||0)+(s.ice||0)).toFixed(2));
+    const totalCalc = parseFloat((s.total!=null ? s.total : ((s.sub15||0)+(s.sub0||0)+(s.subExento||0)+(s.subNoObj||0)+(s.iva15||0)+(s.propina||0)+(s.ice||0))).toFixed(2));
     return {
       RUC_EMISOR:               it.ruc||'',
       RAZON_SOCIAL_EMISOR:      it.razonSocial||'',
@@ -956,7 +996,7 @@ function construirTablaDesdeXMLPool(){
       FECHA_EMISION:            id.fechaEmision||'',
       IDENTIFICACION_RECEPTOR:  id.idComp||'',
       NUMERO_DOCUMENTO_MODIFICADO: '',
-      VALOR_SIN_IMPUESTOS:      s.sub15||0,
+      VALOR_SIN_IMPUESTOS:      parseFloat(((s.sub15||0)+(s.sub0||0)+(s.subExento||0)+(s.subNoObj||0)).toFixed(2)),
       IVA:                      s.iva15||0,
       IMPORTE_TOTAL:            totalCalc,
       // Clasificación exacta del XML — sin estimaciones
@@ -964,6 +1004,9 @@ function construirTablaDesdeXMLPool(){
       base0:        parseFloat((s.sub0||0).toFixed(2)),
       baseExenta:   parseFloat((s.subExento||0).toFixed(2)),
       baseNoObje:   parseFloat((s.subNoObj||0).toFixed(2)),
+      base8:        parseFloat((s.base8||0).toFixed(2)),
+      iva8:         parseFloat((s.iva8||0).toFixed(2)),
+      es530:        (s.base8||0) > 0,
       propina:      parseFloat((s.propina||0).toFixed(2)),
       ice:          parseFloat((s.ice||0).toFixed(2)),
       iva:          parseFloat((s.iva15||0).toFixed(2)),
@@ -1034,6 +1077,9 @@ function aplicarXMLaFilas(rowsClasif, xmlParsed, serie) {
         r.propina      = parseFloat((s.propina||0).toFixed(2));
         r.ice          = parseFloat((s.ice||0).toFixed(2));
         r.iva          = parseFloat((s.iva15||r.iva||0).toFixed(2));
+        r.base8        = parseFloat((s.base8||0).toFixed(2));
+        r.iva8         = parseFloat((s.iva8||0).toFixed(2));
+        r.es530        = (s.base8||0) > 0;   // tiene tramo de tarifa 8%
       } else if(xmlParsed.imp?.length){
         let baseG=0, ivaR=0;
         xmlParsed.imp.forEach(i=>{ if(i.cod==='2'&&parseFloat(i.val)>0){ baseG+=parseFloat(i.base||0); ivaR+=parseFloat(i.val||0); } });
@@ -1138,52 +1184,53 @@ function clasificarFila(r){
 
   if(total===0) return{...r,baseGravada,base0,propina,baseExenta,baseNoObje,ice,iva,total,valSin,alerta:'sin datos'};
 
+  // El TXT del portal NO trae codigoPorcentaje: solo VALOR_SIN_IMPUESTOS, IVA, TOTAL.
+  // Esto es una ESTIMACIÓN. El XML (si se carga) la reemplaza con datos exactos.
   if(iva===0){
-    // Sin IVA → todo es base tarifa 0%
-    base0 = total;
+    // Sin IVA cobrado. Puede ser tarifa 0%, exento o NO OBJETO; el TXT no los distingue.
+    // Se coloca como base 0% (lo más común) y se marca para que el XML lo separe.
+    base0  = valSin>0 ? valSin : total;
+    alerta = 'sin IVA: verifica con XML si es 0% / exento / no objeto';
   } else {
+    // Inferir la tarifa real desde la relación IVA/base, en vez de asumir 15%.
     const tasa = valSin > 0 ? (iva/valSin)*100 : 0;
-    const diff  = parseFloat((total - valSin - iva).toFixed(2));
+    const diff = parseFloat((total - valSin - iva).toFixed(2)); // ICE/propina/otros
 
-    if(tasa >= 5){
-      // SIMPLE: valSin es solo base gravada (tarifa 15%, 8%, 5%)
-      baseGravada = valSin;
-      if(diff > 0.10){
-        // Propina o ICE — va en columna Q informativa, NO declara en IVA
-        propina = diff;
-        if(alerta === '') alerta = 'propina/ICE: no declara en IVA';
-      }
+    // ¿La tasa coincide (±0.6 pp) con una tarifa oficial? → factura simple de una sola tarifa.
+    const tarifasVigentes = [15, 13, 14, 12, 8, 5];
+    const tarifaDetectada = tarifasVigentes.find(t => Math.abs(tasa - t) <= 0.6);
+
+    if(tarifaDetectada){
+      baseGravada = valSin;                 // toda la base es gravada a esa tarifa
+      if(diff > 0.10){ ice = diff; }        // resto = ICE o propina (informativo, no va en IVA)
+    } else if(tasa > 0 && tasa < 4.5){
+      // Tasa baja ⇒ factura MIXTA (parte gravada + parte 0%) o con ICE alto.
+      // No se puede separar sin el XML. Se estima con la tarifa general vigente y se marca.
+      const tarifaGeneral = 15;
+      baseGravada = parseFloat((iva/(tarifaGeneral/100)).toFixed(2));
+      base0       = parseFloat(Math.max(valSin - baseGravada, 0).toFixed(2));
+      alerta      = 'mixta: sube XML para separar base 0% / no objeto';
     } else {
-      // MIXTA: tasa < 5% → valSin mezcla base 15% + base 0%
-      // Ejemplos: TIPTI (supermercado), DIFARE (farmacia mixta)
-      // Estimamos base15 = IVA/0.15, base0 = valSin - base15
-      baseGravada = parseFloat((iva/0.15).toFixed(2));
-      base0       = parseFloat((valSin - baseGravada).toFixed(2));
-      if(base0 < 0) base0 = 0;
-      alerta = 'mixta: sube XML para separar base 0%';
+      // Tasa intermedia no estándar: tratar valSin como gravada pero marcar revisión.
+      baseGravada = valSin;
+      if(diff > 0.10){ ice = diff; }
+      alerta = 'tarifa inusual ('+tasa.toFixed(1)+'%): verifica con XML';
     }
   }
-
-  // Detectar si es feriado con IVA 8% turístico
-  const fecha=(r.FECHA_EMISION||r.FECHA_AUTORIZACION||'');
-  const tasaCalc=iva>0&&baseGravada>0?Math.round((iva/baseGravada)*100):iva>0&&valSin>0?Math.round((iva/valSin)*100):0;
-  const esIVA8=tasaCalc===8||(esFeriado8(fecha)&&esTuristico(r.RAZON_SOCIAL_EMISOR||'')&&iva>0);
-  const tipoTarifa=iva===0?'0%':esIVA8?'8%':tasaCalc===5?'5%':'15%';
 
   return{
     ...r,
     baseGravada: parseFloat(baseGravada.toFixed(2)),
     base0:       parseFloat(base0.toFixed(2)),
     propina:     parseFloat((propina||0).toFixed(2)),
-    ice:         0,
+    ice:         parseFloat((ice||0).toFixed(2)),
     baseExenta, baseNoObje, iva, total, valSin,
     alerta, corregido:false,
-    esIVA8, tipoTarifa, tasaCalc,
   };
 }
 
 function calcularTotales(rows){
-  let tIVA=0,tBaseG=0,tBase0=0,tProp=0,tTotal=0,tExenta=0,tNoObje=0,tB530=0,tI530=0;
+  let tIVA=0,tBaseG=0,tBase0=0,tProp=0,tTotal=0,tExenta=0,tNoObje=0,tB530=0,tI530=0,tICE=0;
   rows.forEach(r=>{
     tIVA   += r.iva||0;
     tBaseG += r.baseGravada||0;
@@ -1192,26 +1239,32 @@ function calcularTotales(rows){
     tTotal += r.total||0;
     tExenta+= r.baseExenta||0;
     tNoObje+= r.baseNoObje||0;
-    if(r.es530){ tB530 += r.baseGravada||0; tI530 += r.iva||0; }
+    tICE   += r.ice||0;
+    if(r.es530){ tB530 += r.base8||0; tI530 += r.iva8||0; }
   });
-  // Calcular c609 desde XMLs de retención cargados en el pool
+  // c609 desde XMLs de retención cargados en el pool
   const c609 = calcularRetencioneIVA();
   return {
     totalIVA:      +tIVA.toFixed(2),
     totalBaseGrav: +tBaseG.toFixed(2),
     totalBase0:    +tBase0.toFixed(2),
     totalPropina:  +tProp.toFixed(2),
+    totalICE:      +tICE.toFixed(2),
     totalBase530:  +tB530.toFixed(2),
     totalIVA530:   +tI530.toFixed(2),
     totalImporte:  +tTotal.toFixed(2),
     totalExenta:   +tExenta.toFixed(2),
     totalNoObje:   +tNoObje.toFixed(2),
-    c500: +tBaseG.toFixed(2),
-    c501: +tIVA.toFixed(2),
-    c507: +tBase0.toFixed(2),
-    c509: +tNoObje.toFixed(2),
-    c510: +tExenta.toFixed(2),
-    c601: +tIVA.toFixed(2),
+    // Casilleros 104A (compras):
+    c500: +tBaseG.toFixed(2),   // 500 base gravada tarifa > 0% (con crédito)
+    c520: +tIVA.toFixed(2),     // 520 IVA pagado en adquisiciones
+    c501: +tIVA.toFixed(2),     // alias compat (algunas vistas usan c501 como IVA)
+    c507: +tBase0.toFixed(2),   // 507 adquisiciones tarifa 0%
+    c531: +tNoObje.toFixed(2),  // 531 adquisiciones NO objeto de IVA
+    c532: +tExenta.toFixed(2),  // 532 adquisiciones exentas
+    c509: +tNoObje.toFixed(2),  // alias compat (vista usa c509 = no objeto)
+    c510: +tExenta.toFixed(2),  // alias compat (vista usa c510 = exenta)
+    c601: +tIVA.toFixed(2),     // crédito tributario por IVA en compras
     c609,
   };
 }
@@ -1236,6 +1289,20 @@ const TC={"01":"Factura","04":"Nota Crédito","05":"Nota Débito","06":"Guía Re
 const TID={"04":"RUC","05":"Cédula","06":"Pasaporte","07":"Cons. Final","08":"Ext."};
 const CRF={"303":"Honorarios 10%","304":"Intelecto 8%","307":"M.obra 2%","309":"Servicios 1%","310":"Bienes 1%","319":"Arrend.Inm 8%","322":"Seguros 1%","323":"Rdtos.Fin 2%","332":"Otras 1%","340":"Otras 2%","341":"Otras 8%"};
 function gx(el,s){return el.querySelector?.(s)?.textContent?.trim()||'';}
+
+// ── Clasificación oficial de codigoPorcentaje del IVA (SRI) ──
+// Devuelve la categoría para el 104A: 'gravada' (tarifa>0%), 'cero', 'noobjeto', 'exento'.
+// Tarifas vigentes e históricas: 2=12% 3=14% 4=15% 5=5% 8=8% 10=13% → todas 'gravada'.
+//                                0=0% → 'cero' · 6=No objeto · 7=Exento.
+function clasificarPorcentajeIVA(pct, valor){
+  const p = String(pct||'').trim();
+  if(p==='6') return 'noobjeto';
+  if(p==='7') return 'exento';
+  if(p==='0') return 'cero';
+  if(['2','3','4','5','8','10'].includes(p)) return 'gravada';
+  // Código desconocido: usar el valor como respaldo (IVA cobrado ⇒ gravada).
+  return (parseFloat(valor||0)||0) > 0 ? 'gravada' : 'cero';
+}
 
 function parsearXML(xmlStr){
   // ── PASO 1: extraer XML real del envoltorio <autorizacion><comprobante><![CDATA[...]]> ──
@@ -1294,34 +1361,49 @@ function parsearXML(xmlStr){
       const totalVal = parseFloat(gx(info,'importeTotal')||0)||0;
       const totalSin = parseFloat(gx(info,'totalSinImpuestos')||0)||0;
 
-      // Recorrer totalConImpuestos: sumar bases e IVA por código
-      // cod=2 → IVA (varias tarifas posibles: 0%, 5%, 8%, 15%)
-      // cod=3 → ICE
-      let ivaReal=0, baseGrav15=0, baseGrav0=0, iceReal=0;
+      // Recorrer totalConImpuestos y clasificar SIEMPRE por codigoPorcentaje.
+      // El SRI define (Ficha Técnica de comprobantes electrónicos):
+      //   cod=2 (IVA): pct 0→0% · 2→12% · 3→14% · 4→15% · 5→5% · 6→No objeto · 7→Exento · 8→8% · 10→13%
+      //   cod=3 (ICE)
+      // En el 104A: 0%, exento y no-objeto van en casilleros distintos (507/532/531),
+      // y toda tarifa > 0% (5/8/12/13/14/15) es "gravada con derecho a crédito" (500/520).
+      const PCT_IVA = clasificarPorcentajeIVA; // helper global
+
+      let ivaReal=0, baseGrav=0, baseGrav0=0, baseNoObj=0, baseExento=0, iceReal=0;
+      let base8=0, iva8=0;  // desglose informativo de tarifa 8%
       info.querySelectorAll('totalConImpuestos totalImpuesto').forEach(i=>{
         const c   = gx(i,'codigo');
         const pct = gx(i,'codigoPorcentaje');
         const base= parseFloat(gx(i,'baseImponible')||0)||0;
         const val = parseFloat(gx(i,'valor')||0)||0;
         if(c==='2'){
-          if(val > 0){ ivaReal+=val; baseGrav15+=base; } // tiene IVA → base gravada
-          else { baseGrav0+=base; }                       // val=0 → tarifa 0% o exento
+          const clase = PCT_IVA(pct, val);   // 'gravada' | 'cero' | 'noobjeto' | 'exento'
+          if(clase==='gravada'){
+            ivaReal+=val; baseGrav+=base;
+            if(String(pct).trim()==='8'){ base8+=base; iva8+=val; }
+          }
+          else if(clase==='noobjeto'){ baseNoObj+=base; }
+          else if(clase==='exento'){ baseExento+=base; }
+          else { baseGrav0+=base; }           // tarifa 0%
         } else if(c==='3'){ iceReal+=val; }
         imp.push({cod:c,pct,base:base.toFixed(2),val:val.toFixed(2)});
       });
 
-      // Si no hay desglose por tarifa, usar totalSinImpuestos
-      if(baseGrav15===0 && ivaReal>0) baseGrav15=totalSin-propina;
-
-      // base0 = diferencia entre total y (base15 + IVA + ICE + propina)
-      const base0calc = parseFloat((totalVal - baseGrav15 - ivaReal - iceReal - propina).toFixed(2));
-      const base0 = Math.max(base0calc, baseGrav0);
+      // Fallback solo si el XML no trae desglose de impuestos (raro):
+      // distribuir totalSinImpuestos según haya o no IVA.
+      const sinDesglose = (baseGrav+baseGrav0+baseNoObj+baseExento)===0;
+      if(sinDesglose){
+        if(ivaReal>0) baseGrav = parseFloat((totalSin).toFixed(2));
+        else baseGrav0 = parseFloat((totalSin).toFixed(2));
+      }
 
       subtotales={
-        sub15:    parseFloat(baseGrav15.toFixed(2)),
-        sub0:     base0 > 0.01 ? parseFloat(base0.toFixed(2)) : 0,
-        subExento:0,
-        subNoObj: 0,
+        sub15:    parseFloat(baseGrav.toFixed(2)),   // base de TODA tarifa > 0% (15/8/5/…)
+        sub0:     parseFloat(baseGrav0.toFixed(2)),  // base tarifa 0%
+        subExento:parseFloat(baseExento.toFixed(2)), // base exenta (pct 7)
+        subNoObj: parseFloat(baseNoObj.toFixed(2)),  // base no objeto (pct 6)
+        base8:    parseFloat(base8.toFixed(2)),       // informativo: base tarifa 8%
+        iva8:     parseFloat(iva8.toFixed(2)),        // informativo: IVA tarifa 8%
         propina,
         ice:      parseFloat(iceReal.toFixed(2)),
         iva15:    parseFloat(ivaReal.toFixed(2)),
@@ -1529,7 +1611,7 @@ function renderTXTVista(p){
   }
 
   // Aviso de feriados IVA 8%
-  const conIVA8 = rowsClasif.filter(r=>r.esIVA8);
+  const conIVA8 = rowsClasif.filter(r=>r.es530);
   if(conIVA8.length>0){
     html+=`<div class="alert" style="background:#fffbeb;border-color:#f59e0b;color:#92400e">
       🏖 <strong>${conIVA8.length} factura${conIVA8.length>1?'s':''} con IVA al 8%</strong> (feriado turístico o tarifa especial).
@@ -1584,7 +1666,7 @@ function renderTXTVista(p){
         <td style="font-size:10px">${r.FECHA_EMISION||''}</td>
         <td class="td-num td-green">${r.baseGravada>0?'$'+r.baseGravada.toFixed(2):''}</td>
         <td class="td-num">${r.base0>0?'$'+r.base0.toFixed(2):''}</td>
-        <td class="td-num" style="color:${r.esIVA8?'#d97706':'var(--red)'};font-weight:${r.esIVA8?'800':'400'}">${r.iva>0?'$'+r.iva.toFixed(2)+( r.esIVA8?' <span title=\"IVA 8% Feriado Turístico\" style=\"background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:3px;padding:0 3px;font-size:8px;font-weight:800;vertical-align:middle\">8% 🏖</span>':'' ):''}</td>
+        <td class="td-num" style="color:${r.es530?'#d97706':'var(--red)'};font-weight:${r.es530?'800':'400'}">${r.iva>0?'$'+r.iva.toFixed(2)+( r.es530?' <span title=\"IVA 8% Feriado Turístico\" style=\"background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:3px;padding:0 3px;font-size:8px;font-weight:800;vertical-align:middle\">8% 🏖</span>':'' ):''}</td>
         <td class="td-num" style="color:#c2410c">${r.propina>0?'$'+r.propina.toFixed(2):''}</td>
         <td class="td-num" style="color:#7e22ce">${r.ice>0?'$'+r.ice.toFixed(2):''}</td>
         <td class="td-num" style="font-weight:700">$${r.total.toFixed(2)}</td>
@@ -1609,7 +1691,7 @@ function render104A(){
   //               2) desde localStorage (ingresado manualmente antes)
   const ventasKey='heka_ventas_'+(extraerMesKey(a.parsed,a.nombre)||'sin_mes');
   let ventas={};
-  try{ ventas=JSON.parse(localStorage.getItem(ventasKey)||'{}'); }catch(e){}
+  try{ ventas=JSON.parse(safeStore.getItem(ventasKey)||'{}'); }catch(e){}
 
   // Fuente 1: facturas emitidas cargadas en memoria (tienen prioridad)
   const aEmit = archivosEmitidos.find(x=>x.esEmitidosPrincipal);
@@ -1622,7 +1704,7 @@ function render104A(){
   } else {
     // Fuente 2: storage de sesión anterior
     try{
-      const teStr=localStorage.getItem('heka_emitidos_actuales');
+      const teStr=safeStore.getItem('heka_emitidos_actuales');
       if(teStr){
         const te=JSON.parse(teStr);
         if(!ventas.v401&&te.c401>0) ventas.v401=te.c401;
@@ -1759,9 +1841,9 @@ function calcularResultado(ventas,t){
 function guardarVenta(casillero, valor, ventasKey_){
   const ventasKey = ventasKey_;
   try{
-    const stored = JSON.parse(localStorage.getItem(ventasKey)||'{}');
+    const stored = JSON.parse(safeStore.getItem(ventasKey)||'{}');
     stored['v'+casillero] = parseFloat(valor)||0;
-    localStorage.setItem(ventasKey, JSON.stringify(stored));
+    safeStore.setItem(ventasKey, JSON.stringify(stored));
     // Re-render 104A para actualizar cálculos
     render104A();
   }catch(e){ console.error('guardarVenta:',e); }
@@ -1769,7 +1851,7 @@ function guardarVenta(casillero, valor, ventasKey_){
 
 function resetVentas(ventasKey){
   if(confirm('¿Limpiar los valores de ventas ingresados?')){
-    try{ localStorage.removeItem(ventasKey); }catch(e){}
+    try{ safeStore.removeItem(ventasKey); }catch(e){}
     render104A();
     showToast('Ventas limpiadas','success');
   }
@@ -1892,7 +1974,7 @@ async function exportTXT(p,hoja){
           r.iva>0         ? r.iva         : null,  // N
           r.total>0       ? r.total       : null,  // O
           r.propina>0     ? r.propina     : null,  // P
-          r.tipoTarifa||'',                        // Q — tarifa
+          (r.base8>0?'8%':r.iva>0&&r.baseGravada>0?(Math.round(r.iva/r.baseGravada*100)+'%'):r.base0>0?'0%':r.baseNoObje>0?'No objeto':r.baseExenta>0?'Exento':''),  // Q — tarifa
           null,                                     // R — Deducible (fórmula)
           'Profesional',                            // S — Tipo gasto ⚠
           '',                                       // T — Observaciones
@@ -2001,7 +2083,7 @@ async function exportar104AExcel(){
   const aEmit = archivosEmitidos.find(x=>x.esEmitidosPrincipal);
   const ventasKey = 'heka_ventas_'+(extraerMesKey(p,a.nombre)||'sin_mes');
   let v = {};
-  try{ v = JSON.parse(localStorage.getItem(ventasKey)||'{}'); }catch(e){}
+  try{ v = JSON.parse(safeStore.getItem(ventasKey)||'{}'); }catch(e){}
   if(aEmit?.parsed?.totalesEmitidos){
     const te = aEmit.parsed.totalesEmitidos;
     if(te.c401>0) v.v401=te.c401;
@@ -2010,23 +2092,40 @@ async function exportar104AExcel(){
     if(te.c411>0) v.v411=te.c411;
   }
 
-  // Valores calculados
-  const c401 = v.v401||0;
-  const c402 = v.v402||0;
-  const c405 = v.v405||0;
-  const c411 = v.v411||0;
-  const c500 = (t.c500||0)-(t.totalBase530||0);
-  const c501 = (t.c501||0)-(t.totalIVA530||0);
-  const c530 = t.totalBase530||0;
-  const c522 = t.totalIVA530||0;
-  const c507 = t.totalBase0||0;
-  const c605 = v.v605||0;
-  const c609 = t.c609||0;
-  const c601 = c501+c522;           // crédito = IVA pagado
+  // ── Valores de casilleros del 104A ──
+  // VENTAS
+  const c401 = v.v401||0;                         // base gravada > 0%
+  const c402 = v.v402||0;                         // IVA cobrado en ventas
+  const c405 = v.v405||0;                         // ventas 0% con derecho a CT
+  const c411 = v.v411||0;                         // no objeto + exentas
+  const c419 = +( c401 + c405 + c411 ).toFixed(2); // total ventas (base)
+  const c429 = c402;                               // impuesto generado en ventas
+
+  // COMPRAS (de los XML/TXT clasificados)
+  const c500 = +((t.c500||0)-(t.totalBase530||0)).toFixed(2); // base 15% (excl. tramo 8% informativo)
+  const c520 = +((t.c520||t.c501||0)-(t.totalIVA530||0)).toFixed(2); // IVA 15%
+  const c530 = +(t.totalBase530||0).toFixed(2);   // base 8% (informativo)
+  const c522 = +(t.totalIVA530||0).toFixed(2);    // IVA 8%
+  const c507 = +(t.c507||0).toFixed(2);           // adquisiciones tarifa 0%
+  const c531 = +(t.c531||0).toFixed(2);           // no objeto
+  const c532 = +(t.c532||0).toFixed(2);           // exentas
+  const ivaComprasTotal = +(c520 + c522).toFixed(2);
+
+  // Factor de proporcionalidad (563): si hay ventas exentas/no-objeto, el crédito
+  // tributario se prorratea. (411+412+415+416)/419 en el formulario.
+  // Aquí: crédito pleno cuando todas las ventas dan derecho (caso usual del estudio).
+  const ventasConDerecho = +(c401 + c405).toFixed(2);
+  const c563 = c419>0 ? +(ventasConDerecho / c419).toFixed(4) : 1;
+  const c564 = +(ivaComprasTotal * c563).toFixed(2); // crédito aplicable este período
+
+  // LIQUIDACIÓN
+  const c605 = v.v605||0;                         // saldo CT mes anterior
+  const c609 = +(t.c609||0).toFixed(2);           // retenciones de IVA recibidas
+  const c601 = c564;                              // crédito tributario aplicable
   const ivaVentas = c402;
-  const subtotal = ivaVentas - c601 - c609 - c605;
-  const c699 = subtotal>0 ? subtotal : 0;
-  const c615 = subtotal<0 ? Math.abs(subtotal) : 0;
+  const subtotal = +(ivaVentas - c601 - c605 - c609).toFixed(2);
+  const c699 = subtotal>0 ? subtotal : 0;          // impuesto a pagar
+  const c615 = subtotal<0 ? +Math.abs(subtotal).toFixed(2) : 0; // saldo CT próximo mes
 
   const FMT  = '_("$"* #,##0.00_);_("$"* (#,##0.00);_("$"* "-"??_);_(@_)';
   const FMTC = '@';  // texto
@@ -2095,7 +2194,7 @@ async function exportar104AExcel(){
       ws.getRange(`A${r}`).format.font.bold=true;
       ws.getRange(`A${r}`).format.font.color='#0f1117';
 
-      const ventasSrc = aEmit ? '✓ auto (emitidos)' : '⚠ manual';
+      const ventasSrc = aEmit ? '✓ auto (emitidos)' : (c401||c402||c405||c411 ? '✓ XML/manual' : '⚠ manual');
       r++;
       R(r,'Ventas locales (excluye AF) gravadas tarifa diferente de cero — BASE','401',c401,ventasSrc);
       r++;
@@ -2103,15 +2202,16 @@ async function exportar104AExcel(){
       r++;
       R(r,'Transferencias no objeto o exentas de IVA','411',c411,ventasSrc);
       r++;
-      R(r,'TOTAL VENTAS Y OTRAS OPERACIONES','409',null,'');
+      R(r,'TOTAL VENTAS Y OTRAS OPERACIONES','419',null,'');
       ws.getRange(`D${r}`).formulas=[[`=D${r-3}+D${r-2}+D${r-1}`]];
       ws.getRange(`A${r}`).format.font.bold=true;
       ws.getRange(`D${r}`).format.font.bold=true;
+      const rowVentasTot = r;
       r++;
-      R(r,'IVA generado en ventas (tarifa 15%)','421',null,'');
-      ws.getRange(`D${r}`).formulas=[[`=D${r-4}*0.15`]];  // 401 * 15%
+      R(r,'IMPUESTO GENERADO EN VENTAS (IVA cobrado)','429',c429,ventasSrc);
       ws.getRange(`A${r}`).format.font.bold=true;
       ws.getRange(`D${r}`).format.font.bold=true;
+      const row429 = r;
 
       // ── SECCIÓN ADQUISICIONES ──
       r+=2;
@@ -2120,34 +2220,51 @@ async function exportar104AExcel(){
       ws.getRange(`A${r}:E${r}`).format.fill.color='#f0fdf4';
       ws.getRange(`A${r}`).format.font.bold=true;
 
+      const compSrc = (p.fuenteXML ? '✓ XML exacto' : '≈ TXT estimado');
       r++;
-      R(r,'Adquisiciones y pagos gravados tarifa 15% (con derecho a CT) — BASE','500',c500,'✓ del TXT');
+      R(r,'Adquisiciones y pagos gravados tarifa diferente de cero (con CT) — BASE','500',c500,compSrc);
       r++;
-      R(r,'Adquisiciones locales de activos fijos gravados tarifa 15% (CT)','501',0,'');
+      R(r,'Adquisiciones locales de activos fijos gravados (CT) — BASE','501',0,'');
       r++;
       if(c530>0){
-        R(r,'Adquisiciones gravados tarifa variable 8% (feriados) — BASE','530',c530,'✓ del TXT');
+        R(r,'Adquisiciones gravadas tarifa 8% — BASE (informativo, incluido en 500)','530',c530,compSrc);
         r++;
       }
-      R(r,'Adquisiciones y pagos gravados tarifa 0%','507',c507,'✓ del TXT');
+      R(r,'Adquisiciones y pagos tarifa 0%','507',c507,compSrc);
+      r++;
+      R(r,'Adquisiciones NO objeto de IVA','531',c531,compSrc);
+      r++;
+      R(r,'Adquisiciones exentas de IVA','532',c532,compSrc);
       r++;
       R(r,'TOTAL ADQUISICIONES Y PAGOS','509',null,'');
-      ws.getRange(`D${r}`).formulas=[[`=D${r-1}+D${r-2}${c530>0?`+D${r-3}`:''}`]];
+      ws.getRange(`D${r}`).formulas=[[`=D${r-3}+D${r-2}+D${r-1}+D${r-4}`]];
       ws.getRange(`A${r}`).format.font.bold=true;
       ws.getRange(`D${r}`).format.font.bold=true;
       const row509 = r;
 
       // IVA pagado
       r++;
-      R(r,'IVA pagado en adquisiciones tarifa 15%','520',c501,'✓ del TXT');
+      R(r,'IVA pagado en adquisiciones (tarifa diferente de cero)','520',c520,compSrc);
       const row520 = r;
       if(c530>0){
         r++;
-        R(r,'IVA pagado en adquisiciones tarifa variable 8%','522',c522,'✓ del TXT');
+        R(r,'IVA pagado tarifa 8% (informativo, incluido en 520)','522',c522,compSrc);
       }
       r++;
-      R(r,'TOTAL IVA PAGADO (crédito tributario)','564',null,'');
-      ws.getRange(`D${r}`).formulas=[[`=D${row520}${c530>0?`+D${row520+1}`:''}`]];
+      R(r,'TOTAL IVA EN ADQUISICIONES','—',null,'');
+      ws.getRange(`D${r}`).formulas=[[`=D${row520}`]];
+      ws.getRange(`A${r}`).format.font.bold=true;
+      ws.getRange(`D${r}`).format.font.bold=true;
+      const rowIvaComp = r;
+
+      // Factor de proporcionalidad
+      r++;
+      R(r,'Factor de proporcionalidad del crédito tributario  (411+415)/419','563',c563,'calculado');
+      ws.getRange(`D${r}`).numberFormat=[['0.0000']];
+      const row563 = r;
+      r++;
+      R(r,'CRÉDITO TRIBUTARIO APLICABLE EN ESTE PERÍODO  (520 × 563)','564',null,'');
+      ws.getRange(`D${r}`).formulas=[[`=ROUND(D${rowIvaComp}*D${row563},2)`]];
       ws.getRange(`A${r}`).format.font.bold=true;
       ws.getRange(`D${r}`).format.font.bold=true;
       const row564 = r;
@@ -2159,7 +2276,8 @@ async function exportar104AExcel(){
       ws.getRange(`A${r}`).format.font.bold=true;
 
       r++;
-      R(r,'IVA cobrado en ventas (tarifa diferente de cero)','499',c402,ventasSrc);
+      R(r,'IMPUESTO CAUSADO / IVA cobrado en ventas (trasladado del 429)','499',null,ventasSrc);
+      ws.getRange(`D${r}`).formulas=[[`=D${row429}`]];
       const row499 = r;
 
       r++;
@@ -2275,7 +2393,7 @@ function imprimirPDF(modo) {
   if (modo === '104a') {
     const t = a.parsed.totales || {};
     const ventasKey='heka_ventas_'+(extraerMesKey(a.parsed,a.nombre)||'sin_mes');
-    let ventas={};try{ventas=JSON.parse(localStorage.getItem(ventasKey)||'{}');}catch(e){}
+    let ventas={};try{ventas=JSON.parse(safeStore.getItem(ventasKey)||'{}');}catch(e){}
     titulo = 'Formulario 104A — Declaración IVA';
     htmlContenido = generarHTML104A(t, a.nombre, ventas);
   } else if (modo === 'meses') {
@@ -2746,15 +2864,17 @@ function generarHTML104A(t, archivo, ventas={}) {
 function clasificarFilaEmitida(r){
   // TXT emitidos SRI Facturador: FECHA_EMISION, COMPROBANTE, NUMERO_COMPROBANTE,
   // IDENTIFICACION_RECEPTOR, RAZON_SOCIAL, CLAVE_ACCESO, VALOR_TOTAL
-  // Si tiene SUBTOTAL_SIN_IMPUESTOS e IVA (TXT expandido), úsalos directamente
-  const total = parseFloat(r.VALOR_TOTAL||0)||0;
-  const serie = r.NUMERO_COMPROBANTE||'';
+  const total = parseFloat(r.VALOR_TOTAL||r.IMPORTE_TOTAL||0)||0;
+  const serie = r.NUMERO_COMPROBANTE||r.SERIE_COMPROBANTE||'';
   const clave = r.CLAVE_ACCESO||'';
+  // Si el TXT ya trae columnas de base/IVA, úsalas como respaldo.
+  const txtSub = parseFloat(r.VALOR_SIN_IMPUESTOS||r.SUBTOTAL_SIN_IMPUESTOS||0)||0;
+  const txtIVA = parseFloat(r.IVA||0)||0;
 
-  // Buscar XML en el pool para obtener base e IVA exactos
+  // Buscar XML en el pool para obtener base e IVA exactos (autoritativo)
   const xmlData = xmlPool[serie] || xmlPool[clave] || null;
-  let base15=0, base0=0, iva=0, baseNoObj=0, baseExenta=0, propina=0;
-  let tieneXML = false;
+  let base15=0, base0=0, iva=0, baseNoObj=0, baseExenta=0, propina=0, ice=0;
+  let alerta=''; let tieneXML = false;
 
   if(xmlData?.subtotales){
     const s = xmlData.subtotales;
@@ -2764,15 +2884,31 @@ function clasificarFilaEmitida(r){
     baseNoObj = s.subNoObj||0;
     iva       = s.iva15||0;
     propina   = s.propina||0;
+    ice       = s.ice||0;
     tieneXML  = true;
   } else if(xmlData?.imp?.length){
-    xmlData.imp.forEach(i=>{ if(i.cod==='2'&&parseFloat(i.val)>0){ base15+=parseFloat(i.base||0); iva+=parseFloat(i.val||0); } });
+    xmlData.imp.forEach(i=>{
+      if(i.cod!=='2') return;
+      const clase = clasificarPorcentajeIVA(i.pct, i.val);
+      const b=parseFloat(i.base||0)||0, v=parseFloat(i.val||0)||0;
+      if(clase==='gravada'){ base15+=b; iva+=v; }
+      else if(clase==='noobjeto'){ baseNoObj+=b; }
+      else if(clase==='exento'){ baseExenta+=b; }
+      else { base0+=b; }
+    });
     tieneXML = true;
+  } else if(txtSub>0){
+    // Sin XML pero el TXT trae subtotal/IVA: usarlos sin asumir tarifa.
+    if(txtIVA>0){ base15=txtSub; iva=txtIVA; }
+    else { base0=txtSub; }
+    alerta='estimado del TXT: sube el XML para exactitud';
   } else {
-    // Sin XML: estimar desde total
-    // Si hay IVA en el total, estimar 15%
-    base15 = parseFloat((total/1.15).toFixed(2));
+    // Solo hay VALOR_TOTAL: no se puede separar base e IVA con certeza.
+    // Estimación con tarifa general vigente, claramente marcada.
+    const tarifaGeneral = 15;
+    base15 = parseFloat((total/(1+tarifaGeneral/100)).toFixed(2));
     iva    = parseFloat((total - base15).toFixed(2));
+    alerta = 'sin desglose: estimado al '+tarifaGeneral+'% — sube el XML';
   }
 
   return {
@@ -2783,10 +2919,8 @@ function clasificarFilaEmitida(r){
     baseNoObj: parseFloat(baseNoObj.toFixed(2)),
     iva:       parseFloat(iva.toFixed(2)),
     propina:   parseFloat(propina.toFixed(2)),
-    total,
-    tieneXML,
-    serie,
-    clave,
+    ice:       parseFloat(ice.toFixed(2)),
+    total, tieneXML, alerta, serie, clave,
   };
 }
 
@@ -2801,10 +2935,10 @@ function calcularTotalesEmitidos(rows){
     tExenta += r.baseExenta||0;
   });
   return {
-    c401: +tBase15.toFixed(2),   // Ventas gravadas base
-    c402: +tIVA.toFixed(2),      // IVA cobrado
-    c405: +tBase0.toFixed(2),    // Ventas tarifa 0%
-    c411: +tNoObj.toFixed(2),    // No objeto
+    c401: +tBase15.toFixed(2),            // Ventas gravadas tarifa > 0% (base)
+    c402: +tIVA.toFixed(2),               // IVA cobrado en ventas
+    c405: +tBase0.toFixed(2),             // Ventas tarifa 0% (con derecho a CT)
+    c411: +(tNoObj + tExenta).toFixed(2), // Transferencias no objeto + exentas
     totalVentas: +tTotal.toFixed(2),
     nConXML: rows.filter(r=>r.tieneXML).length,
     nSinXML: rows.filter(r=>!r.tieneXML).length,
@@ -2816,7 +2950,7 @@ function actualizarTotales104AEmitidos(te){
   if(!te) return;
   try{
     const key = 'heka_emitidos_actuales';
-    localStorage.setItem(key, JSON.stringify(te));
+    safeStore.setItem(key, JSON.stringify(te));
   }catch(e){}
 }
 
@@ -2917,7 +3051,7 @@ function renderEmitidos(){
         <td style="font-size:10px">${r.FECHA_EMISION||''}</td>
         <td class="td-num td-green">${r.base15>0?'$'+r.base15.toFixed(2):''}</td>
         <td class="td-num">${r.base0>0?'$'+r.base0.toFixed(2):''}</td>
-        <td class="td-num" style="color:${r.esIVA8?'#d97706':'var(--red)'};font-weight:${r.esIVA8?'800':'400'}">${r.iva>0?'$'+r.iva.toFixed(2)+( r.esIVA8?' <span title=\"IVA 8% Feriado Turístico\" style=\"background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:3px;padding:0 3px;font-size:8px;font-weight:800;vertical-align:middle\">8% 🏖</span>':'' ):''}</td>
+        <td class="td-num" style="color:${r.es530?'#d97706':'var(--red)'};font-weight:${r.es530?'800':'400'}">${r.iva>0?'$'+r.iva.toFixed(2)+( r.es530?' <span title=\"IVA 8% Feriado Turístico\" style=\"background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:3px;padding:0 3px;font-size:8px;font-weight:800;vertical-align:middle\">8% 🏖</span>':'' ):''}</td>
         <td class="td-num" style="font-weight:700">$${r.total.toFixed(2)}</td>
       </tr>`).join('')}</tbody>
       <tfoot><tr style="background:var(--blue-light)">
@@ -3164,7 +3298,7 @@ function extraerMesKey(parsed,nombre){
 
 function guardarMesEnStorage(parsed,nombre){
   try{
-    const stored=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');
+    const stored=JSON.parse(safeStore.getItem(STORAGE_KEY)||'{}');
     const mesKey=extraerMesKey(parsed,nombre);
     if(!mesKey) return;
     stored[mesKey]={
@@ -3180,18 +3314,18 @@ function guardarMesEnStorage(parsed,nombre){
         nPendientes:parsed.rowsClasif?.filter(r=>r.alerta&&r.alerta!=='sin datos'&&r.alerta!=='propina/ICE: no declara en IVA'&&!r.corregido).length||0,
       }
     };
-    localStorage.setItem(STORAGE_KEY,JSON.stringify(stored));
+    safeStore.setItem(STORAGE_KEY,JSON.stringify(stored));
     renderMeses();
   }catch(e){console.error('Storage:',e);}
 }
 
 function cargarHistorico(){
-  try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');}catch(e){return {};}
+  try{return JSON.parse(safeStore.getItem(STORAGE_KEY)||'{}');}catch(e){return {};}
 }
 
 function limpiarHistorico(){
   if(confirm('¿Limpiar todo el histórico de meses guardados?')){
-    localStorage.removeItem(STORAGE_KEY);
+    safeStore.removeItem(STORAGE_KEY);
     renderMeses();
     showToast('Histórico limpiado','success');
   }
@@ -3369,7 +3503,7 @@ function procesarNotasCredito(rowsClasif){
 // TUTORIAL DE PRIMERA VEZ
 // ══════════════════════════════════════════════════════════
 function verificarPrimeraVez(){
-  try{if(!localStorage.getItem('heka_tutorial_done')) setTimeout(mostrarTutorial,600);}catch(e){}
+  try{if(!safeStore.getItem('heka_tutorial_done')) setTimeout(mostrarTutorial,600);}catch(e){}
 }
 
 function mostrarTutorial(){
@@ -3399,7 +3533,7 @@ function mostrarTutorial(){
 
 function cerrarTutorial(){
   document.getElementById('tut-overlay')?.remove();
-  try{localStorage.setItem('heka_tutorial_done','1');}catch(e){}
+  try{safeStore.setItem('heka_tutorial_done','1');}catch(e){}
 }
 </script>
 </body>
