@@ -2139,8 +2139,12 @@ async function exportar104AExcel(){
       let ws;
       const HOJA = '104A';
       const existe=sheets.items.find(s=>s.name===HOJA);
-      if(existe){ws=existe; ws.getUsedRange().clear(); await ctx.sync();}
-      else{ ws=sheets.add(HOJA); }
+      if(existe){
+        ws=existe;
+        try{ const ur=ws.getUsedRangeOrNullObject(); ur.load('address'); await ctx.sync(); if(!ur.isNullObject) ur.clear(); }
+        catch(_){ try{ ws.getRange('A1:Z200').clear(); }catch(__){} }
+        await ctx.sync();
+      } else { ws=sheets.add(HOJA); }
       ws.activate(); await ctx.sync();
 
       // ──────────────────────────────────────────────
